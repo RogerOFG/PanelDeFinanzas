@@ -16,8 +16,8 @@ const CuentasView = {
     const cards = cuentas.map(c => `
       <div class="account-card">
         <div class="actions">
-          <button class="btn icon small secondary" data-edit="${c.id}" title="Editar">✏️</button>
-          <button class="btn icon small danger" data-del="${c.id}" title="Eliminar">🗑️</button>
+          <button class="btn icon small secondary" data-edit="${c.id}" title="Editar">${ICON_EDIT}</button>
+          <button class="btn icon small danger" data-del="${c.id}" title="Eliminar">${ICON_TRASH}</button>
         </div>
         <span class="pill ${c.moneda === 'USD' ? 'usd' : 'cop'}">${c.moneda}</span>
         <span class="pill tipo">${TIPO_CUENTA_LABELS[c.tipo] || c.tipo}</span>

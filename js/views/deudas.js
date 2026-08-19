@@ -28,8 +28,8 @@ const DeudasView = {
               <strong style="margin-left:6px;">${escapeHtml(d.nombre)}</strong>
             </div>
             <div style="display:flex;gap:6px;">
-              <button class="btn icon small secondary" data-edit="${d.id}">✏️</button>
-              <button class="btn icon small danger" data-del="${d.id}">🗑️</button>
+              <button class="btn icon small secondary" data-edit="${d.id}">${ICON_EDIT}</button>
+              <button class="btn icon small danger" data-del="${d.id}">${ICON_TRASH}</button>
             </div>
           </div>
           <div class="balance" style="font-size:20px;">${formatMoney(d.monto, d.moneda)} <span class="text-dim" style="font-size:12px;font-weight:400;">/ mes</span></div>

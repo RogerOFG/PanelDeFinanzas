@@ -26,8 +26,8 @@ const MetasView = {
             <strong>${escapeHtml(m.nombre)}</strong>
             <div style="display:flex;gap:6px;">
               <button class="btn small secondary" data-aporte="${m.id}">+ Aporte</button>
-              <button class="btn icon small secondary" data-edit="${m.id}">✏️</button>
-              <button class="btn icon small danger" data-del="${m.id}">🗑️</button>
+              <button class="btn icon small secondary" data-edit="${m.id}">${ICON_EDIT}</button>
+              <button class="btn icon small danger" data-del="${m.id}">${ICON_TRASH}</button>
             </div>
           </div>
           <div class="progress-bar"><div style="width:${pct}%;"></div></div>

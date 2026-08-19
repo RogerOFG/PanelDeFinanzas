@@ -17,21 +17,30 @@ const TransaccionesView = {
     if (this.filtro.cuentaId) transacciones = transacciones.filter(t => t.cuentaId === this.filtro.cuentaId || t.cuentaDestinoId === this.filtro.cuentaId);
     if (this.filtro.tipo) transacciones = transacciones.filter(t => t.tipo === this.filtro.tipo);
 
+    const icons = {
+      ingreso: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+      gasto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l1.5 12h9L18 2M3 7h18M9 22h6"/></svg>',
+      transferencia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4M7 8l-4 4 4 4"/><path d="M3 12h18"/></svg>'
+    };
+
     const rows = transacciones.map(t => {
       const cuenta = Storage.find('cuentas', t.cuentaId);
       const destino = t.cuentaDestinoId ? Storage.find('cuentas', t.cuentaDestinoId) : null;
       const signo = t.tipo === 'gasto' ? '-' : t.tipo === 'ingreso' ? '+' : '';
-      const pillClass = t.tipo === 'ingreso' ? 'pos' : t.tipo === 'gasto' ? 'neg' : 'tipo';
+      const titulo = t.descripcion || (t.categoria ? t.categoria[0].toUpperCase() + t.categoria.slice(1) : TIPO_MOVIMIENTO_LABELS[t.tipo]);
+      const sub = `${escapeHtml(cuenta ? cuenta.nombre : '—')}${destino ? ` → ${escapeHtml(destino.nombre)}` : ''} · ${formatDate(t.fecha)}`;
       return `
-        <tr>
-          <td>${formatDate(t.fecha)}</td>
-          <td><span class="pill ${pillClass}">${TIPO_MOVIMIENTO_LABELS[t.tipo]}</span></td>
-          <td>${escapeHtml(cuenta ? cuenta.nombre : '—')}${destino ? ` → ${escapeHtml(destino.nombre)}` : ''}</td>
-          <td>${escapeHtml(t.categoria || '—')}</td>
-          <td>${escapeHtml(t.descripcion || '—')}</td>
-          <td style="text-align:right;font-weight:600;">${signo}${formatMoney(t.monto, cuenta?.moneda)}</td>
-          <td><button class="btn icon small danger" data-del="${t.id}">🗑️</button></td>
-        </tr>`;
+        <div class="tx-item">
+          <div class="tx-icon ${t.tipo}">${icons[t.tipo]}</div>
+          <div class="tx-body">
+            <div class="tx-title">${escapeHtml(titulo)}</div>
+            <div class="tx-sub">${sub}</div>
+          </div>
+          <div class="tx-amount ${t.tipo}">${signo}${formatMoney(t.monto, cuenta?.moneda)}</div>
+          <button class="btn icon small danger tx-del" data-del="${t.id}" aria-label="Eliminar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6"/></svg>
+          </button>
+        </div>`;
     }).join('');
 
     const cuentaOptions = cuentas.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
@@ -50,13 +59,7 @@ const TransaccionesView = {
           <option value="transferencia">Transferencias</option>
         </select>
       </div>
-      <div class="card table-wrap">
-        ${transacciones.length === 0 ? '<div class="empty-state">No hay transacciones con este filtro.</div>' : `
-        <table>
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Cuenta</th><th>Categoría</th><th>Descripción</th><th style="text-align:right;">Monto</th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`}
-      </div>
+      ${transacciones.length === 0 ? '<div class="empty-state card">No hay transacciones con este filtro.</div>' : `<div class="tx-list">${rows}</div>`}
     `;
 
     container.querySelector('#filter-cuenta').value = this.filtro.cuentaId;

@@ -7,9 +7,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-<div class="app">
+
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <span class="brand-icon" style="width:44px;height:44px;margin:0 auto 18px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 15.5L10.5 11L13.2 13.4L17 8.5" stroke="#0a0c10" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <h1>FinBot</h1>
+    <p class="text-dim">Inicia sesión con tu cuenta de Gmail para ver tu panel de finanzas.</p>
+    <div id="google-signin-button" style="display:flex;justify-content:center;margin-top:18px;"></div>
+    <p id="login-status" class="text-dim" style="font-size:13px;margin-top:16px;"></p>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display:none;">
   <header class="topbar">
     <div class="brand">
       <span class="brand-icon">
@@ -17,7 +31,9 @@
       </span>
       <h1 id="view-title">Resumen</h1>
     </div>
-    <div class="topbar-actions" id="topbar-actions"></div>
+    <div class="topbar-actions" id="topbar-actions">
+      <button id="user-badge" class="user-badge" aria-label="Cuenta"></button>
+    </div>
   </header>
 
   <main class="content">
@@ -61,6 +77,7 @@
 <script src="js/storage.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/exchangeRate.js"></script>
 <script src="js/views/dashboard.js"></script>
 <script src="js/views/cuentas.js"></script>

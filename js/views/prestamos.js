@@ -21,8 +21,8 @@ const PrestamosView = {
             </div>
             <div style="display:flex;gap:6px;">
               ${!p.completado ? `<button class="btn small secondary" data-pago="${p.id}">+ Pago</button>` : ''}
-              <button class="btn icon small secondary" data-edit="${p.id}">✏️</button>
-              <button class="btn icon small danger" data-del="${p.id}">🗑️</button>
+              <button class="btn icon small secondary" data-edit="${p.id}">${ICON_EDIT}</button>
+              <button class="btn icon small danger" data-del="${p.id}">${ICON_TRASH}</button>
             </div>
           </div>
           <div class="progress-bar"><div style="width:${pct}%;"></div></div>
@@ -30,7 +30,7 @@ const PrestamosView = {
           <div class="stat-sub">Pendiente: <strong>${formatMoney(pendiente, p.moneda)}</strong></div>
           ${p.fechaLimite ? `<div class="stat-sub">Vence: ${formatDate(p.fechaLimite)}</div>` : ''}
           ${p.notas ? `<div class="stat-sub">${escapeHtml(p.notas)}</div>` : ''}
-          ${p.completado ? '<div class="pill pos" style="margin-top:8px;">✅ Pagado por completo</div>' : ''}
+          ${p.completado ? `<div class="pill pos" style="margin-top:8px;">${ICON_CHECK} Pagado por completo</div>` : ''}
         </div>`;
     };
 
@@ -177,7 +177,7 @@ const PrestamosView = {
           });
           UI.closeModal();
           PrestamosView.render();
-          UI.toast(nuevoPagado >= prestamo.monto ? '✅ Préstamo saldado por completo' : 'Pago registrado');
+          UI.toast(nuevoPagado >= prestamo.monto ? 'Préstamo saldado por completo' : 'Pago registrado');
         };
       }
     });

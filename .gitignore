@@ -1,0 +1,6 @@
+# Credenciales de Google OAuth — NUNCA subir a GitHub
+client_secret*.json
+
+# Sistema
+.DS_Store
+Thumbs.db

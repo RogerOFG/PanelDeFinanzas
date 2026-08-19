@@ -31,10 +31,10 @@ const AjustesView = {
           <p class="card-title">Datos</p>
           <p class="text-dim" style="font-size:13px;">Tus datos se guardan localmente en este navegador (localStorage). Exporta un respaldo periódicamente.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
-            <button class="btn secondary" id="export-btn">⬇️ Exportar respaldo (JSON)</button>
-            <button class="btn secondary" id="import-btn">⬆️ Importar respaldo</button>
+            <button class="btn secondary" id="export-btn">Exportar respaldo (JSON)</button>
+            <button class="btn secondary" id="import-btn">Importar respaldo</button>
             <input type="file" id="import-file" accept="application/json" style="display:none;">
-            <button class="btn danger" id="reset-btn">🗑️ Borrar todos los datos</button>
+            <button class="btn danger" id="reset-btn">Borrar todos los datos</button>
           </div>
         </div>
       </div>

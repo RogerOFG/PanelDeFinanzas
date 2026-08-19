@@ -1,0 +1,131 @@
+const CuentasView = {
+  render() {
+    const cuentas = Storage.get('cuentas');
+    const container = document.getElementById('view-cuentas');
+
+    if (cuentas.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state card">
+          <p>Aún no tienes cuentas registradas.</p>
+          <button class="btn" id="add-cuenta-empty">+ Crear primera cuenta</button>
+        </div>`;
+      container.querySelector('#add-cuenta-empty').onclick = () => CuentasView.openForm();
+      return;
+    }
+
+    const cards = cuentas.map(c => `
+      <div class="account-card">
+        <div class="actions">
+          <button class="btn icon small secondary" data-edit="${c.id}" title="Editar">✏️</button>
+          <button class="btn icon small danger" data-del="${c.id}" title="Eliminar">🗑️</button>
+        </div>
+        <span class="pill ${c.moneda === 'USD' ? 'usd' : 'cop'}">${c.moneda}</span>
+        <span class="pill tipo">${TIPO_CUENTA_LABELS[c.tipo] || c.tipo}</span>
+        <div class="balance">${formatMoney(c.saldo, c.moneda)}</div>
+        <div class="text-dim" style="font-size:14px;font-weight:600;">${escapeHtml(c.nombre)}</div>
+        ${c.titular ? `<div class="text-dim" style="font-size:12px;margin-top:4px;">Titular: ${escapeHtml(c.titular)}</div>` : ''}
+        ${c.notas ? `<div class="text-dim" style="font-size:12px;margin-top:6px;">${escapeHtml(c.notas)}</div>` : ''}
+      </div>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="text-dim">${cuentas.length} cuenta(s) registrada(s)</div>
+        <button class="btn" id="add-cuenta">+ Nueva cuenta</button>
+      </div>
+      <div class="grid cols-3">${cards}</div>
+    `;
+
+    container.querySelector('#add-cuenta').onclick = () => CuentasView.openForm();
+    container.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.onclick = () => CuentasView.openForm(btn.dataset.edit);
+    });
+    container.querySelectorAll('[data-del]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.del;
+        const usada = Storage.get('transacciones').some(t => t.cuentaId === id || t.cuentaDestinoId === id);
+        const msg = usada
+          ? '¿Eliminar esta cuenta? Tiene transacciones asociadas que conservarán la referencia histórica.'
+          : '¿Eliminar esta cuenta?';
+        UI.confirmAction(msg, () => {
+          Storage.remove('cuentas', id);
+          CuentasView.render();
+          UI.toast('Cuenta eliminada');
+        });
+      };
+    });
+  },
+
+  openForm(id) {
+    const cuenta = id ? Storage.find('cuentas', id) : null;
+    UI.openModal(cuenta ? 'Editar cuenta' : 'Nueva cuenta', `
+      <form id="cuenta-form">
+        <div class="form-row">
+          <label>Nombre</label>
+          <input type="text" name="nombre" required value="${escapeHtml(cuenta?.nombre || '')}" placeholder="Ej: Nequi, Ahorros Bancolombia, Acciones DIAN">
+        </div>
+        <div class="form-row inline">
+          <div>
+            <label>Tipo de cuenta</label>
+            <select name="tipo">
+              <option value="efectivo" ${cuenta?.tipo === 'efectivo' ? 'selected' : ''}>Efectivo</option>
+              <option value="banco" ${cuenta?.tipo === 'banco' ? 'selected' : ''}>Cuenta bancaria</option>
+              <option value="inversion" ${cuenta?.tipo === 'inversion' ? 'selected' : ''}>Inversión</option>
+              <option value="terceros" ${cuenta?.tipo === 'terceros' ? 'selected' : ''}>Cuenta de terceros</option>
+            </select>
+          </div>
+          <div>
+            <label>Moneda</label>
+            <select name="moneda">
+              <option value="COP" ${cuenta?.moneda === 'COP' || !cuenta ? 'selected' : ''}>COP (Pesos)</option>
+              <option value="USD" ${cuenta?.moneda === 'USD' ? 'selected' : ''}>USD (Dólares)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Saldo actual</label>
+          <input type="number" step="0.01" name="saldo" value="${cuenta?.saldo ?? 0}">
+        </div>
+        <div class="form-row">
+          <label>Titular (si no es a tu nombre)</label>
+          <input type="text" name="titular" value="${escapeHtml(cuenta?.titular || '')}" placeholder="Ej: dinero de mamá, cuenta de socio">
+        </div>
+        <div class="form-row">
+          <label>Notas</label>
+          <textarea name="notas" rows="2">${escapeHtml(cuenta?.notas || '')}</textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
+          <button type="submit" class="btn">${cuenta ? 'Guardar' : 'Crear'}</button>
+        </div>
+      </form>
+    `, {
+      onMount: (root) => {
+        root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
+        root.querySelector('#cuenta-form').onsubmit = (e) => {
+          e.preventDefault();
+          const fd = new FormData(e.target);
+          const data = {
+            nombre: fd.get('nombre').trim(),
+            tipo: fd.get('tipo'),
+            moneda: fd.get('moneda'),
+            saldo: parseFloat(fd.get('saldo')) || 0,
+            titular: fd.get('titular').trim(),
+            notas: fd.get('notas').trim()
+          };
+          if (cuenta) {
+            Storage.update('cuentas', cuenta.id, data);
+            UI.toast('Cuenta actualizada');
+          } else {
+            data.creada = todayISO();
+            Storage.insert('cuentas', data);
+            UI.toast('Cuenta creada');
+          }
+          UI.closeModal();
+          CuentasView.render();
+          if (typeof DashboardView !== 'undefined') DashboardView.render();
+        };
+      }
+    });
+  }
+};

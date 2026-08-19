@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FinBot — Panel de Finanzas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M7 15.5L10.5 11L13.2 13.4L17 8.5" stroke="#0a0c10" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <h1 id="view-title">Resumen</h1>
+    </div>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </header>
+
+  <main class="content">
+    <section id="view-dashboard" class="view active"></section>
+    <section id="view-cuentas" class="view"></section>
+    <section id="view-transacciones" class="view"></section>
+    <section id="view-metas" class="view"></section>
+    <section id="view-prestamos" class="view"></section>
+    <section id="view-deudas" class="view"></section>
+    <section id="view-ajustes" class="view"></section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="dashboard" aria-label="Resumen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span>Resumen</span>
+    </button>
+    <button class="nav-btn" data-view="cuentas" aria-label="Cuentas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      <span>Cuentas</span>
+    </button>
+    <button class="nav-btn nav-btn-fab" data-view="transacciones" aria-label="Nueva transacción">
+      <span class="fab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0a0c10" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+      </span>
+    </button>
+    <button class="nav-btn" data-view="metas" aria-label="Metas de ahorro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
+      <span>Metas</span>
+    </button>
+    <button class="nav-btn" id="nav-more-btn" aria-label="Más opciones">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M4 10h16"/></svg>
+      <span>Más</span>
+    </button>
+  </nav>
+</div>
+
+<div id="modal-root" class="modal-root"></div>
+<div id="toast-root" class="toast-root"></div>
+
+<script src="js/storage.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/exchangeRate.js"></script>
+<script src="js/views/dashboard.js"></script>
+<script src="js/views/cuentas.js"></script>
+<script src="js/views/transacciones.js"></script>
+<script src="js/views/metas.js"></script>
+<script src="js/views/prestamos.js"></script>
+<script src="js/views/deudas.js"></script>
+<script src="js/views/ajustes.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

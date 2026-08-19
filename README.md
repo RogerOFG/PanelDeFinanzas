@@ -7,7 +7,7 @@ metas de ahorro, préstamos y deudas/suscripciones con recordatorios. Corre
 ## Requisitos
 
 - Un navegador moderno.
-- Python 3 (para servir la app localmente) — ya viene instalado en la mayoría de sistemas.
+- Node.js (para servir la app localmente con `npx serve`).
 
 ## Cómo correr el proyecto en local
 
@@ -16,7 +16,7 @@ metas de ahorro, préstamos y deudas/suscripciones con recordatorios. Corre
    (el login con Google está autorizado solo para ese origen):
 
    ```bash
-   python -m http.server 3000
+   npx serve . -l 3000
    ```
 
 3. Abre en el navegador: **http://localhost:3000**

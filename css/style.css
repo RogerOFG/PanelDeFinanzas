@@ -359,6 +359,85 @@ tr:last-child td { border-bottom: none; }
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
 }
+.section-header .section-title { font-size: 15px; font-weight: 700; }
+.link-btn {
+  appearance: none; background: transparent; border: none; cursor: pointer;
+  color: var(--accent); font-size: 12.5px; font-weight: 600; font-family: var(--font-body);
+  padding: 4px 0; min-height: 32px;
+}
+
+/* Dashboard hero */
+.hero-card {
+  background: linear-gradient(160deg, #182018 0%, #101512 60%, var(--bg-panel-2) 100%);
+  border: 1px solid #223028;
+  border-radius: 20px;
+  padding: 22px 20px;
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-glow {
+  position: absolute; top: -40px; right: -40px; width: 140px; height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(126,224,196,0.14), transparent 70%);
+  pointer-events: none;
+}
+.hero-label {
+  position: relative; color: #8a9a92; font-size: 11.5px; text-transform: uppercase;
+  letter-spacing: 0.07em; font-weight: 600; margin-bottom: 8px;
+}
+.hero-value {
+  position: relative; font-family: var(--font-display); font-size: clamp(24px, 8vw, 34px);
+  font-weight: 700; letter-spacing: -0.01em; overflow-wrap: break-word;
+}
+.hero-trend {
+  position: relative; display: flex; align-items: center; gap: 5px; margin-top: 8px;
+  font-size: 12.5px; font-weight: 600;
+}
+.hero-trend svg { width: 12px; height: 12px; }
+.hero-trend.pos { color: var(--accent); }
+.hero-trend.neg { color: var(--danger); }
+.quick-actions {
+  position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px;
+}
+.quick-action {
+  appearance: none; cursor: pointer; font-family: var(--font-body);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column;
+  align-items: center; gap: 6px; min-height: 44px; justify-content: center;
+  color: var(--text); font-size: 11px; font-weight: 600;
+}
+.quick-action svg { width: 17px; height: 17px; }
+.quick-action.send svg { color: var(--accent); }
+.quick-action.add svg { color: var(--accent-2); }
+.quick-action.history svg { color: var(--warning); }
+
+/* Mini stats */
+.mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+.mini-stat { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+.mini-stat-label { color: var(--text-dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }
+.mini-stat-value { font-family: var(--font-display); font-size: 18px; font-weight: 700; overflow-wrap: break-word; }
+.mini-stat-value.pos { color: var(--accent); }
+.mini-stat-value.neg { color: var(--danger); }
+
+/* Accounts horizontal scroll */
+.accounts-scroll {
+  display: flex; gap: 10px; overflow-x: auto; margin: 0 -20px 24px; padding: 0 20px 4px;
+  scrollbar-width: none;
+}
+.accounts-scroll::-webkit-scrollbar { display: none; }
+.account-mini {
+  flex-shrink: 0; width: 150px; background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px;
+}
+.account-mini-icon {
+  width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center;
+  justify-content: center; margin-bottom: 12px;
+}
+.account-mini-icon svg { width: 15px; height: 15px; }
+.account-mini-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-mini-currency { font-size: 10.5px; color: var(--text-dim); margin-bottom: 10px; }
+.account-mini-balance { font-family: var(--font-display); font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
 
 .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; overflow-x: auto; }
 .filters select, .filters input { background: var(--bg-panel-2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 10px; font-size: 13px; min-height: 40px; }

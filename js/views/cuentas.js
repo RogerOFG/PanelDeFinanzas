@@ -19,6 +19,7 @@ const CuentasView = {
           <button class="btn icon small secondary" data-edit="${c.id}" title="Editar">${ICON_EDIT}</button>
           <button class="btn icon small danger" data-del="${c.id}" title="Eliminar">${ICON_TRASH}</button>
         </div>
+        <div class="account-mini-icon" style="background:color-mix(in srgb, ${ACCOUNT_TIPO_COLOR[c.tipo]} 15%, transparent);color:${ACCOUNT_TIPO_COLOR[c.tipo]};margin-bottom:10px;">${ICON_ACCOUNT_TIPO[c.tipo] || ICON_ACCOUNT_TIPO.banco}</div>
         <span class="pill ${c.moneda === 'USD' ? 'usd' : 'cop'}">${c.moneda}</span>
         <span class="pill tipo">${TIPO_CUENTA_LABELS[c.tipo] || c.tipo}</span>
         <div class="balance">${formatMoney(c.saldo, c.moneda)}</div>
@@ -33,7 +34,7 @@ const CuentasView = {
         <div class="text-dim">${cuentas.length} cuenta(s) registrada(s)</div>
         <button class="btn" id="add-cuenta">+ Nueva cuenta</button>
       </div>
-      <div class="grid cols-3">${cards}</div>
+      <div class="grid cols-2">${cards}</div>
     `;
 
     container.querySelector('#add-cuenta').onclick = () => CuentasView.openForm();

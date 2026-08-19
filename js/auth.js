@@ -144,16 +144,16 @@ const Auth = {
 
   openAccountMenu() {
     UI.openModal('Cuenta', `
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-        <img src="${escapeHtml(this.currentUser.picture || '')}" alt="" class="user-avatar" style="width:48px;height:48px;" referrerpolicy="no-referrer">
-        <div>
-          <div style="font-weight:600;">${escapeHtml(this.currentUser.name || '')}</div>
-          <div class="text-dim" style="font-size:13px;">${escapeHtml(this.currentUser.email || '')}</div>
-        </div>
+      <div class="account-menu">
+        <img src="${escapeHtml(this.currentUser.picture || '')}" alt="" class="account-menu-avatar" referrerpolicy="no-referrer">
+        <div class="account-menu-name">${escapeHtml(this.currentUser.name || '')}</div>
+        <div class="account-menu-email">${escapeHtml(this.currentUser.email || '')}</div>
       </div>
-      <div class="modal-actions" style="justify-content:flex-start;">
-        <button class="btn danger" id="logout-btn">Cerrar sesión</button>
-      </div>
+      <div class="account-menu-divider"></div>
+      <button class="btn danger account-menu-logout" id="logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        Cerrar sesión
+      </button>
     `, {
       onMount: (root) => {
         root.querySelector('#logout-btn').onclick = () => Auth.logout();

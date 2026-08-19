@@ -362,6 +362,20 @@ tr:last-child td { border-bottom: none; }
 .notif-title { font-size: 13.5px; font-weight: 600; }
 .notif-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
 
+/* Account menu */
+.account-menu { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 6px 0 20px; }
+.account-menu-avatar {
+  width: 72px; height: 72px; border-radius: 50%; object-fit: cover; display: block;
+  border: 2px solid var(--border); margin-bottom: 14px;
+}
+.account-menu-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.account-menu-email { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+.account-menu-divider { height: 1px; background: var(--border); margin: 4px 0 18px; }
+.account-menu-logout {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.account-menu-logout svg { width: 16px; height: 16px; }
+
 /* Toasts */
 .toast-root {
   position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%;

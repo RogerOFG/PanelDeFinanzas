@@ -18,9 +18,44 @@ const App = {
       btn.addEventListener('click', () => this.navigate(btn.dataset.view));
     });
     document.getElementById('nav-more-btn').addEventListener('click', () => this.openMore());
+    document.getElementById('notif-btn').addEventListener('click', () => this.openNotifications());
     this.renderCurrentView();
+    this.updateNotifDot();
     setTimeout(() => DeudasView.checkReminders(), 600);
     ExchangeRate.refreshIfNeeded();
+  },
+
+  pendingReminders() {
+    const deudas = Storage.get('deudas').filter(d => d.activa);
+    return deudas
+      .map(d => ({ ...d, prox: DeudasView.proximoPago(d.diaPago) }))
+      .map(d => ({ ...d, dias: daysUntil(d.prox) }))
+      .filter(d => d.dias !== null && d.dias >= 0 && d.dias <= (d.recordatorioDias ?? 3))
+      .sort((a, b) => a.dias - b.dias);
+  },
+
+  updateNotifDot() {
+    const dot = document.getElementById('notif-dot');
+    dot.hidden = this.pendingReminders().length === 0;
+  },
+
+  openNotifications() {
+    const pendientes = this.pendingReminders();
+    UI.openModal('Notificaciones', `
+      <div class="more-menu">
+        ${pendientes.length ? pendientes.map(d => `
+          <div class="notif-item">
+            <span class="notif-icon ${d.dias === 0 ? 'danger' : 'warn'}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+            </span>
+            <div>
+              <div class="notif-title">${escapeHtml(d.nombre)} vence ${d.dias === 0 ? 'hoy' : `en ${d.dias} día(s)`}</div>
+              <div class="notif-sub">${formatMoney(d.monto, d.moneda)} · ${formatDate(d.prox)}</div>
+            </div>
+          </div>
+        `).join('') : '<div class="empty-state">No tienes notificaciones pendientes.</div>'}
+      </div>
+    `);
   },
 
   navigate(view) {

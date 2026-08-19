@@ -65,6 +65,8 @@ const DeudasView = {
         UI.toast('Eliminada');
       });
     });
+
+    App.updateNotifDot();
   },
 
   proximoPago(diaPago) {
@@ -93,7 +95,7 @@ const DeudasView = {
       const dias = daysUntil(prox);
       const umbral = d.recordatorioDias ?? 3;
       if (dias !== null && dias >= 0 && dias <= umbral) {
-        UI.toast(`🔔 "${d.nombre}" vence en ${dias === 0 ? 'hoy' : dias + ' día(s)'} — ${formatMoney(d.monto, d.moneda)}`, dias === 0 ? 'danger' : 'warn');
+        UI.toast(`"${d.nombre}" vence en ${dias === 0 ? 'hoy' : dias + ' día(s)'} — ${formatMoney(d.monto, d.moneda)}`, dias === 0 ? 'danger' : 'warn');
       }
     });
   },

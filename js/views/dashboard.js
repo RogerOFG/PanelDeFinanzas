@@ -77,7 +77,14 @@ const DashboardView = {
       </div>`;
     }).join('') : '<div class="empty-state">Sin pagos programados.</div>';
 
+    const nombre = (Auth.currentUser?.name || '').split(' ')[0] || null;
+    const fechaTexto = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+
     container.innerHTML = `
+      <div class="dashboard-greeting">
+        <div class="dashboard-greeting-hello">${nombre ? `Hola, ${escapeHtml(nombre)}` : 'Hola'}</div>
+        <div class="dashboard-greeting-date">${fechaTexto[0].toUpperCase() + fechaTexto.slice(1)}</div>
+      </div>
       <div class="hero-card">
         <div class="hero-glow"></div>
         <div class="hero-label">Patrimonio total</div>

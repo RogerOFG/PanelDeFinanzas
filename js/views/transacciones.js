@@ -1,8 +1,17 @@
 const CATEGORIAS_GASTO = ['comida', 'transporte', 'renta', 'servicios', 'entretenimiento', 'salud', 'educacion', 'ropa', 'tecnologia', 'hogar', 'juegos', 'prestamo_otorgado', 'otros'];
 const CATEGORIAS_INGRESO = ['salario', 'freelance', 'inversiones', 'regalos', 'ventas', 'prestamo_recibido', 'devolucion_prestamo', 'otros'];
 
+function capitalizar(str) {
+  return str ? str[0].toUpperCase() + str.slice(1) : str;
+}
+
+function mesLabel(fechaISO) {
+  const d = new Date(fechaISO + 'T00:00:00');
+  return capitalizar(d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }));
+}
+
 const TransaccionesView = {
-  filtro: { cuentaId: '', tipo: '' },
+  filtro: { cuentaId: '', tipo: '', categoria: '' },
 
   render() {
     const container = document.getElementById('view-transacciones');
@@ -13,9 +22,13 @@ const TransaccionesView = {
       return;
     }
 
-    let transacciones = Storage.get('transacciones').slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+    const todas = Storage.get('transacciones');
+    const categoriasDisponibles = [...new Set(todas.map(t => t.categoria).filter(Boolean))].sort();
+
+    let transacciones = todas.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
     if (this.filtro.cuentaId) transacciones = transacciones.filter(t => String(t.cuentaId) === String(this.filtro.cuentaId) || String(t.cuentaDestinoId) === String(this.filtro.cuentaId));
     if (this.filtro.tipo) transacciones = transacciones.filter(t => t.tipo === this.filtro.tipo);
+    if (this.filtro.categoria) transacciones = transacciones.filter(t => t.categoria === this.filtro.categoria);
 
     const icons = {
       ingreso: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
@@ -23,13 +36,20 @@ const TransaccionesView = {
       transferencia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4M7 8l-4 4 4 4"/><path d="M3 12h18"/></svg>'
     };
 
-    const rows = transacciones.map(t => {
+    let rows = '';
+    let mesActual = null;
+    transacciones.forEach(t => {
+      const mes = t.fecha.slice(0, 7);
+      if (mes !== mesActual) {
+        mesActual = mes;
+        rows += `<div class="tx-month-divider">${mesLabel(t.fecha)}</div>`;
+      }
       const cuenta = Storage.find('cuentas', t.cuentaId);
       const destino = t.cuentaDestinoId ? Storage.find('cuentas', t.cuentaDestinoId) : null;
       const signo = t.tipo === 'gasto' ? '-' : t.tipo === 'ingreso' ? '+' : '';
-      const titulo = t.descripcion || (t.categoria ? t.categoria[0].toUpperCase() + t.categoria.slice(1) : TIPO_MOVIMIENTO_LABELS[t.tipo]);
+      const titulo = t.descripcion || (t.categoria ? capitalizar(t.categoria) : TIPO_MOVIMIENTO_LABELS[t.tipo]);
       const sub = `${escapeHtml(cuenta ? cuenta.nombre : '—')}${destino ? ` → ${escapeHtml(destino.nombre)}` : ''} · ${formatDate(t.fecha)}`;
-      return `
+      rows += `
         <div class="tx-item">
           <div class="tx-icon ${t.tipo}">${icons[t.tipo]}</div>
           <div class="tx-body">
@@ -42,7 +62,7 @@ const TransaccionesView = {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6"/></svg>
           </button>
         </div>`;
-    }).join('');
+    });
 
     container.innerHTML = `
       <div class="section-header">
@@ -57,6 +77,7 @@ const TransaccionesView = {
           { value: 'gasto', label: 'Gastos' },
           { value: 'transferencia', label: 'Transferencias' }
         ], this.filtro.tipo, { id: 'filter-tipo' })}
+        ${UI.selectHTML('filter-categoria', [{ value: '', label: 'Todas las categorías' }, ...categoriasDisponibles.map(c => ({ value: c, label: capitalizar(c) }))], this.filtro.categoria, { id: 'filter-categoria' })}
       </div>
       ${transacciones.length === 0 ? '<div class="empty-state card">No hay transacciones con este filtro.</div>' : `<div class="tx-list">${rows}</div>`}
     `;
@@ -64,6 +85,7 @@ const TransaccionesView = {
     UI.initSelects(container);
     container.querySelector('#filter-cuenta').onchange = (e) => { this.filtro.cuentaId = e.target.value; this.render(); };
     container.querySelector('#filter-tipo').onchange = (e) => { this.filtro.tipo = e.target.value; this.render(); };
+    container.querySelector('#filter-categoria').onchange = (e) => { this.filtro.categoria = e.target.value; this.render(); };
     container.querySelector('#add-tx').onclick = () => this.openForm();
     container.querySelectorAll('[data-edit]').forEach(btn => {
       btn.onclick = () => this.openForm(btn.dataset.edit);

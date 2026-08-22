@@ -1,0 +1,31 @@
+name: Desplegar en el servidor
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conectar por SSH y desplegar
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/finbot
+            git pull origin main
+
+            cd backend
+            docker build -t finbot-backend:latest .
+            docker rm -f finbot-backend || true
+            docker run -d --name finbot-backend --restart always \
+              -p 127.0.0.1:4000:4000 \
+              --env-file ~/finbot/backend/.env \
+              finbot-backend:latest
+
+            sleep 2
+            curl -sf http://127.0.0.1:4000/health

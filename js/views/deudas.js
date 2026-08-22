@@ -406,7 +406,11 @@ const DeudasView = {
           <label>¿Cuánto pagó?</label>
           ${UI.moneyInputHTML('monto', miembro.montoMensual, { required: true })}
         </div>
-        <div class="form-row">
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="soloRegistro" id="pm-solo-registro">
+          <label for="pm-solo-registro" style="margin:0;">Ya está reflejado en mi saldo (no crear un ingreso nuevo)</label>
+        </div>
+        <div class="form-row" id="pm-cuenta-row">
           <label>¿A qué cuenta llegó el pago?</label>
           ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'pm-cuenta' })}
         </div>
@@ -424,24 +428,34 @@ const DeudasView = {
         UI.initSelects(root);
         UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => { UI.closeModal(); DeudasView.openMiembros(miembro.deudaId); };
+
+        const soloRegistroChk = root.querySelector('#pm-solo-registro');
+        const cuentaRow = root.querySelector('#pm-cuenta-row');
+        soloRegistroChk.addEventListener('change', () => {
+          cuentaRow.style.display = soloRegistroChk.checked ? 'none' : '';
+        });
+
         root.querySelector('#pago-miembro-form').onsubmit = (e) => {
           e.preventDefault();
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
-          const cuentaId = fd.get('cuentaId');
+          const soloRegistro = fd.get('soloRegistro') === 'on';
+          const cuentaId = soloRegistro ? null : fd.get('cuentaId');
           const fecha = fd.get('fecha') || todayISO();
-          const cuenta = Storage.find('cuentas', cuentaId);
+          const cuenta = soloRegistro ? null : Storage.find('cuentas', cuentaId);
 
-          // Optimista: refleja el pago y el ingreso en la cuenta de inmediato.
+          // Optimista: refleja el pago (y el ingreso, salvo que ya esté contado) de inmediato.
           miembro.pagos = [...(miembro.pagos || []), { monto, cuentaId, fecha }];
           if (cuenta) cuenta.saldo += monto;
 
-          Storage.pagoMiembro(miembroId, { monto, cuentaId, fecha }).then(() => {
-            // Refresca transacciones para que el ingreso auto-generado aparezca en la lista.
-            Storage.initFromServer().then(() => {
-              TransaccionesView.render();
-              if (typeof DashboardView !== 'undefined') DashboardView.render();
-            });
+          Storage.pagoMiembro(miembroId, { monto, cuentaId, fecha, soloRegistro }).then(() => {
+            if (!soloRegistro) {
+              // Refresca transacciones para que el ingreso auto-generado aparezca en la lista.
+              Storage.initFromServer().then(() => {
+                TransaccionesView.render();
+                if (typeof DashboardView !== 'undefined') DashboardView.render();
+              });
+            }
           }).catch(err => {
             miembro.pagos = miembro.pagos.filter(p => p !== miembro.pagos[miembro.pagos.length - 1]);
             if (cuenta) cuenta.saldo -= monto;

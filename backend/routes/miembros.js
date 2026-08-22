@@ -55,10 +55,32 @@ router.delete('/:id', async (req, res) => {
   res.status(204).end();
 });
 
-// Marca el pago de un miembro: registra el pago Y crea automáticamente el
-// ingreso correspondiente en Transacciones, actualizando el saldo de la cuenta.
+// Marca el pago de un miembro. Por defecto registra el pago Y crea
+// automáticamente el ingreso correspondiente en Transacciones, actualizando
+// el saldo de la cuenta. Si `soloRegistro` es true, solo queda el registro
+// para el seguimiento de deuda — no se toca ninguna cuenta ni transacción
+// (útil cuando el dinero ya se recibió y ya está reflejado en el saldo).
 router.post('/:id/pago', async (req, res) => {
-  const { monto, cuentaId, fecha } = req.body;
+  const { monto, cuentaId, fecha, soloRegistro } = req.body;
+
+  if (soloRegistro) {
+    const miembro = await pool.query(
+      `SELECT m.id FROM miembros_suscripcion m
+       JOIN deudas d ON d.id = m.deuda_id
+       WHERE m.id=$1 AND d.usuario_id=$2;`,
+      [req.params.id, req.usuario.id]
+    );
+    if (!miembro.rows[0]) return res.status(400).json({ error: 'Miembro no encontrado' });
+
+    const pago = await pool.query(
+      `INSERT INTO pagos_miembro (miembro_id, monto, cuenta_id, fecha)
+       VALUES ($1,$2,$3, COALESCE($4, CURRENT_DATE))
+       RETURNING id, monto, cuenta_id AS "cuentaId", fecha::date::text AS fecha;`,
+      [req.params.id, monto, cuentaId || null, fecha || null]
+    );
+    return res.status(201).json(pago.rows[0]);
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

@@ -1,4 +1,4 @@
-const CATEGORIAS_GASTO = ['comida', 'transporte', 'renta', 'servicios', 'entretenimiento', 'salud', 'educacion', 'ropa', 'tecnologia', 'hogar', 'juegos', 'prestamo_otorgado', 'otros'];
+const CATEGORIAS_GASTO = ['comida', 'transporte', 'renta', 'servicios', 'entretenimiento', 'salud', 'educacion', 'ropa', 'tecnologia', 'hogar', 'juegos', 'regalo', 'prestamo_otorgado', 'otros'];
 const CATEGORIAS_INGRESO = ['salario', 'freelance', 'inversiones', 'regalos', 'ventas', 'prestamo_recibido', 'devolucion_prestamo', 'otros'];
 
 function capitalizar(str) {

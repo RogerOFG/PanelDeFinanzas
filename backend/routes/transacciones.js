@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-const SELECT_FIELDS = 'id, cuenta_id, cuenta_destino_id, tipo, monto, categoria, descripcion, fecha::date::text AS fecha';
+const SELECT_FIELDS = 'id, cuenta_id AS "cuentaId", cuenta_destino_id AS "cuentaDestinoId", tipo, monto, categoria, descripcion, fecha::date::text AS fecha';
 
 async function aplicarEfecto(client, { cuentaId, cuentaDestinoId, tipo, monto }) {
   if (tipo === 'transferencia') {

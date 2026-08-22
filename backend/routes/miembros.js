@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-const SELECT_FIELDS = `m.id, m.deuda_id AS "deudaId", m.nombre, m.monto_mensual AS "montoMensual", m.activo, m.notas`;
+const SELECT_FIELDS = `m.id, m.deuda_id AS "deudaId", m.nombre, m.monto_mensual AS "montoMensual", m.activo, m.notas, m.creado_en::date::text AS "creadoEn"`;
 
 router.get('/', async (req, res) => {
   const { rows } = await pool.query(

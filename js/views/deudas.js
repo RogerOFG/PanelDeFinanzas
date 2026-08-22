@@ -60,7 +60,7 @@ const DeudasView = {
               ? `<button class="${pagoBtnClass}" disabled>Ya pagado este mes</button>`
               : `<button class="${pagoBtnClass}" data-pagar="${d.id}">Marcar pago de este mes</button>`
             ) : ''}
-            <button class="btn small secondary" data-miembros="${d.id}">👥 Miembros (${this.miembrosDe(d.id).length})</button>
+            <button class="btn small secondary" data-miembros="${d.id}">👥 Miembros (${this.miembrosDe(d.id).length})${this.miembrosConDeuda(d).length ? ` · ${this.miembrosConDeuda(d).length} debe(n)` : ''}</button>
           </div>
         </div>`;
     };
@@ -209,6 +209,29 @@ const DeudasView = {
     return (miembro.pagos || []).reduce((s, p) => s + p.monto, 0);
   },
 
+  miembrosConDeuda(deuda) {
+    return this.miembrosDe(deuda.id).filter(m => m.activo).filter(m => {
+      const ciclos = this.ciclosTranscurridosMiembro(m, deuda);
+      return this.totalPagadoMiembro(m) - (ciclos * m.montoMensual) < 0;
+    });
+  },
+
+  // Cuántos ciclos de cobro (meses) han empezado desde que se agregó el miembro,
+  // incluyendo el actual — para acumular la deuda en vez de "olvidarla" cada mes.
+  ciclosTranscurridosMiembro(miembro, deuda) {
+    if (!miembro.creadoEn) return 1;
+    const creado = new Date(miembro.creadoEn + 'T00:00:00');
+    const inicioActual = new Date(this.cicloInicio(deuda.diaPago) + 'T00:00:00');
+    let cursor = new Date(creado.getFullYear(), creado.getMonth(), deuda.diaPago);
+    if (cursor < creado) cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, deuda.diaPago);
+    let count = 0;
+    while (cursor <= inicioActual) {
+      count++;
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, deuda.diaPago);
+    }
+    return Math.max(count, 1);
+  },
+
   openMiembros(deudaId) {
     const deuda = Storage.find('deudas', deudaId);
     const miembros = this.miembrosDe(deudaId);
@@ -217,15 +240,23 @@ const DeudasView = {
       const pagadoEsteCiclo = this.pagadoEsteCicloMiembro(m, deuda);
       const totalPagado = this.totalPagadoMiembro(m);
       const ultimoPago = (m.pagos || []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
-      const montoEsteCiclo = pagadoEsteCiclo
-        ? (m.pagos || []).filter(p => p.fecha >= this.cicloInicio(deuda.diaPago)).reduce((s, p) => s + p.monto, 0)
-        : 0;
-      const diferencia = pagadoEsteCiclo ? montoEsteCiclo - m.montoMensual : -m.montoMensual;
+
+      const ciclos = this.ciclosTranscurridosMiembro(m, deuda);
+      const totalEsperado = ciclos * m.montoMensual;
+      const balance = totalPagado - totalEsperado; // negativo = debe, positivo = pagó de más
+
       let difTexto, difClase;
-      if (!pagadoEsteCiclo) { difTexto = `Debe ${formatMoney(m.montoMensual, deuda.moneda)}`; difClase = 'neg'; }
-      else if (diferencia === 0) { difTexto = 'Pagó exacto'; difClase = 'pos'; }
-      else if (diferencia > 0) { difTexto = `Pagó ${formatMoney(diferencia, deuda.moneda)} de más`; difClase = 'pos'; }
-      else { difTexto = `Le falta ${formatMoney(Math.abs(diferencia), deuda.moneda)}`; difClase = 'neg'; }
+      if (balance === 0) {
+        difTexto = 'Al día';
+        difClase = 'pos';
+      } else if (balance > 0) {
+        difTexto = `Pagó ${formatMoney(balance, deuda.moneda)} de más`;
+        difClase = 'pos';
+      } else {
+        const mesesDebe = Math.ceil(Math.abs(balance) / m.montoMensual);
+        difTexto = `Debe ${formatMoney(Math.abs(balance), deuda.moneda)} — ${mesesDebe} mes${mesesDebe > 1 ? 'es' : ''} sin pagar`;
+        difClase = 'neg';
+      }
 
       return `
         <div class="card" style="margin-bottom:10px;">
@@ -243,7 +274,7 @@ const DeudasView = {
           <div class="stat-sub">Total acumulado pagado: <strong>${formatMoney(totalPagado, deuda.moneda)}</strong></div>
           <div class="stat-sub"><span class="pill ${difClase}">${difTexto}</span></div>
           ${ultimoPago ? `<div class="stat-sub">Último pago: ${formatDate(ultimoPago.fecha)} · ${formatMoney(ultimoPago.monto, deuda.moneda)}</div>` : ''}
-          ${m.activo ? `<button class="btn small ${pagadoEsteCiclo ? 'secondary' : 'warning'}" style="margin-top:8px;" data-pagar-miembro="${m.id}">${pagadoEsteCiclo ? 'Registrar otro pago' : 'Marcar que pagó'}</button>` : ''}
+          ${m.activo ? `<button class="btn small ${balance < -m.montoMensual ? 'danger' : (pagadoEsteCiclo ? 'secondary' : 'warning')}" style="margin-top:8px;" data-pagar-miembro="${m.id}">${pagadoEsteCiclo ? 'Registrar otro pago' : 'Marcar que pagó'}</button>` : ''}
         </div>`;
     };
 

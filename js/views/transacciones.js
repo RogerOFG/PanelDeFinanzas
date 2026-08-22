@@ -1,5 +1,5 @@
-const CATEGORIAS_GASTO = ['comida', 'transporte', 'renta', 'servicios', 'entretenimiento', 'salud', 'educacion', 'ropa', 'tecnologia', 'hogar', 'otros'];
-const CATEGORIAS_INGRESO = ['salario', 'freelance', 'inversiones', 'regalos', 'ventas', 'otros'];
+const CATEGORIAS_GASTO = ['comida', 'transporte', 'renta', 'servicios', 'entretenimiento', 'salud', 'educacion', 'ropa', 'tecnologia', 'hogar', 'juegos', 'prestamo_otorgado', 'otros'];
+const CATEGORIAS_INGRESO = ['salario', 'freelance', 'inversiones', 'regalos', 'ventas', 'prestamo_recibido', 'devolucion_prestamo', 'otros'];
 
 const TransaccionesView = {
   filtro: { cuentaId: '', tipo: '' },
@@ -37,6 +37,7 @@ const TransaccionesView = {
             <div class="tx-sub">${sub}</div>
           </div>
           <div class="tx-amount ${t.tipo}">${signo}${formatMoney(t.monto, cuenta?.moneda)}</div>
+          <button class="btn icon small secondary tx-del" data-edit="${t.id}" aria-label="Editar">${ICON_EDIT}</button>
           <button class="btn icon small danger tx-del" data-del="${t.id}" aria-label="Eliminar">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6"/></svg>
           </button>
@@ -64,6 +65,9 @@ const TransaccionesView = {
     container.querySelector('#filter-cuenta').onchange = (e) => { this.filtro.cuentaId = e.target.value; this.render(); };
     container.querySelector('#filter-tipo').onchange = (e) => { this.filtro.tipo = e.target.value; this.render(); };
     container.querySelector('#add-tx').onclick = () => this.openForm();
+    container.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.onclick = () => this.openForm(btn.dataset.edit);
+    });
     container.querySelectorAll('[data-del]').forEach(btn => {
       btn.onclick = () => {
         UI.confirmAction('¿Eliminar esta transacción? El saldo de la cuenta se revertirá.', () => {
@@ -93,11 +97,14 @@ const TransaccionesView = {
     UI.toast('Transacción eliminada');
   },
 
-  openForm() {
+  openForm(id) {
+    const tx = id ? Storage.find('transacciones', id) : null;
     const cuentas = Storage.get('cuentas');
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+    const tipoInicial = tx?.tipo || 'gasto';
+    const categoriasIniciales = tipoInicial === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
 
-    UI.openModal('Nueva transacción', `
+    UI.openModal(tx ? 'Editar transacción' : 'Nueva transacción', `
       <form id="tx-form">
         <div class="form-row">
           <label>Tipo</label>
@@ -105,33 +112,33 @@ const TransaccionesView = {
             { value: 'gasto', label: 'Gasto' },
             { value: 'ingreso', label: 'Ingreso' },
             { value: 'transferencia', label: 'Transferencia entre cuentas' }
-          ], 'gasto', { id: 'tx-tipo' })}
+          ], tipoInicial, { id: 'tx-tipo' })}
         </div>
         <div class="form-row">
           <label id="cuenta-label">Cuenta</label>
-          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'tx-cuenta' })}
+          ${UI.selectHTML('cuentaId', cuentaOpts, tx?.cuentaId ?? cuentaOpts[0]?.value, { id: 'tx-cuenta' })}
         </div>
-        <div class="form-row" id="cuenta-destino-row" style="display:none;">
+        <div class="form-row" id="cuenta-destino-row" style="display:${tipoInicial === 'transferencia' ? '' : 'none'};">
           <label>Cuenta destino</label>
-          ${UI.selectHTML('cuentaDestinoId', cuentaOpts, cuentaOpts[0]?.value, { id: 'tx-cuenta-destino' })}
+          ${UI.selectHTML('cuentaDestinoId', cuentaOpts, tx?.cuentaDestinoId ?? cuentaOpts[0]?.value, { id: 'tx-cuenta-destino' })}
         </div>
         <div class="form-row inline">
           <div>
             <label>Monto</label>
-            <input type="number" step="0.01" name="monto" required min="0.01">
+            <input type="number" step="0.01" name="monto" required min="0.01" value="${tx?.monto ?? ''}">
           </div>
-          <div id="categoria-wrap">
+          <div id="categoria-wrap" style="display:${tipoInicial === 'transferencia' ? 'none' : ''};">
             <label>Categoría</label>
-            ${UI.selectHTML('categoria', CATEGORIAS_GASTO, CATEGORIAS_GASTO[0], { id: 'tx-categoria' })}
+            ${UI.selectHTML('categoria', categoriasIniciales, tx?.categoria || categoriasIniciales[0], { id: 'tx-categoria' })}
           </div>
         </div>
         <div class="form-row">
           <label>Descripción</label>
-          <input type="text" name="descripcion" placeholder="Opcional">
+          <input type="text" name="descripcion" placeholder="Opcional" value="${escapeHtml(tx?.descripcion || '')}">
         </div>
         <div class="form-row">
           <label>Fecha</label>
-          <input type="date" name="fecha" value="${todayISO()}">
+          <input type="date" name="fecha" value="${tx?.fecha || todayISO()}">
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -157,7 +164,6 @@ const TransaccionesView = {
           destinoRow.style.display = tipoSelect.value === 'transferencia' ? '' : 'none';
         }
         tipoSelect.addEventListener('change', () => { updateCategorias(); updateDestino(); });
-        updateCategorias(); updateDestino();
 
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#tx-form').onsubmit = (e) => {
@@ -167,26 +173,55 @@ const TransaccionesView = {
           const cuentaId = fd.get('cuentaId');
           const monto = parseFloat(fd.get('monto'));
           const cuenta = Storage.find('cuentas', cuentaId);
+          const destinoId = fd.get('cuentaDestinoId');
+
+          if (tipo === 'transferencia' && destinoId === cuentaId) {
+            UI.toast('La cuenta destino debe ser distinta', 'danger');
+            return;
+          }
+
+          if (tx) {
+            // Revertir el efecto anterior sobre los saldos en caché (optimista)
+            const oldCuenta = Storage.find('cuentas', tx.cuentaId);
+            if (oldCuenta) {
+              if (tx.tipo === 'ingreso') oldCuenta.saldo -= tx.monto;
+              else if (tx.tipo === 'gasto') oldCuenta.saldo += tx.monto;
+              else if (tx.tipo === 'transferencia') {
+                oldCuenta.saldo += tx.monto;
+                const oldDestino = Storage.find('cuentas', tx.cuentaDestinoId);
+                if (oldDestino) oldDestino.saldo -= tx.monto;
+              }
+            }
+          }
 
           if (tipo === 'transferencia') {
-            const destinoId = fd.get('cuentaDestinoId');
-            if (destinoId === cuentaId) { UI.toast('La cuenta destino debe ser distinta', 'danger'); return; }
             const destino = Storage.find('cuentas', destinoId);
             cuenta.saldo -= monto;
             destino.saldo += monto;
-            Storage.save();
-            Storage.insert('transacciones', { cuentaId, cuentaDestinoId: destinoId, tipo, monto, descripcion: fd.get('descripcion').trim(), fecha: fd.get('fecha') || todayISO() });
+          } else if (tipo === 'ingreso') {
+            cuenta.saldo += monto;
           } else {
-            if (tipo === 'ingreso') cuenta.saldo += monto; else cuenta.saldo -= monto;
-            Storage.save();
-            Storage.insert('transacciones', { cuentaId, tipo, monto, categoria: fd.get('categoria'), descripcion: fd.get('descripcion').trim(), fecha: fd.get('fecha') || todayISO() });
+            cuenta.saldo -= monto;
           }
+
+          const data = {
+            cuentaId,
+            cuentaDestinoId: tipo === 'transferencia' ? destinoId : null,
+            tipo,
+            monto,
+            categoria: tipo === 'transferencia' ? null : fd.get('categoria'),
+            descripcion: fd.get('descripcion').trim(),
+            fecha: fd.get('fecha') || todayISO()
+          };
+
+          if (tx) Storage.update('transacciones', tx.id, data);
+          else Storage.insert('transacciones', data);
 
           UI.closeModal();
           TransaccionesView.render();
           CuentasView.render();
           if (typeof DashboardView !== 'undefined') DashboardView.render();
-          UI.toast('Transacción registrada');
+          UI.toast(tx ? 'Transacción actualizada' : 'Transacción registrada');
         };
       }
     });

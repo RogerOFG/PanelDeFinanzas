@@ -46,14 +46,16 @@ const App = {
 
   updateNotifDot() {
     const dot = document.getElementById('notif-dot');
-    dot.hidden = this.pendingReminders().length === 0;
+    const hayMiembros = DeudasView.pendingMemberReminders().length > 0;
+    dot.hidden = this.pendingReminders().length === 0 && !hayMiembros;
   },
 
   openNotifications() {
     const pendientes = this.pendingReminders();
+    const miembrosPendientes = DeudasView.pendingMemberReminders();
     UI.openModal('Notificaciones', `
       <div class="more-menu">
-        ${pendientes.length ? pendientes.map(d => `
+        ${pendientes.map(d => `
           <div class="notif-item">
             <span class="notif-icon ${d.dias === 0 ? 'danger' : 'warn'}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
@@ -63,7 +65,19 @@ const App = {
               <div class="notif-sub">${formatMoney(d.monto, d.moneda)} · ${formatDate(d.prox)}</div>
             </div>
           </div>
-        `).join('') : '<div class="empty-state">No tienes notificaciones pendientes.</div>'}
+        `).join('')}
+        ${miembrosPendientes.map(r => `
+          <div class="notif-item">
+            <span class="notif-icon ${r.dias <= 0 ? 'danger' : 'warn'}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/></svg>
+            </span>
+            <div>
+              <div class="notif-title">Falta marcar el pago de ${escapeHtml(r.miembro.nombre)}</div>
+              <div class="notif-sub">${escapeHtml(r.deuda.nombre)} · ${formatMoney(r.miembro.montoMensual, r.deuda.moneda)}</div>
+            </div>
+          </div>
+        `).join('')}
+        ${(pendientes.length === 0 && miembrosPendientes.length === 0) ? '<div class="empty-state">No tienes notificaciones pendientes.</div>' : ''}
       </div>
     `);
   },

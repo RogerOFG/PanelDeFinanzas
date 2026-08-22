@@ -11,7 +11,8 @@ const ENDPOINTS = {
   transacciones: '/transacciones',
   metas: '/metas',
   prestamos: '/prestamos',
-  deudas: '/deudas'
+  deudas: '/deudas',
+  miembros: '/miembros'
 };
 
 async function apiFetch(path, options = {}) {
@@ -45,22 +46,23 @@ function savePrefs(prefs) {
 }
 
 const Storage = {
-  _db: { cuentas: [], transacciones: [], metas: [], prestamos: [], deudas: [], config: { tasaCambio: 4000 } },
+  _db: { cuentas: [], transacciones: [], metas: [], prestamos: [], deudas: [], miembros: [], config: { tasaCambio: 4000 } },
   _ready: false,
 
   // Carga todas las colecciones del usuario autenticado desde el backend.
   async initFromServer() {
     const prefs = loadPrefs();
-    const [cuentas, transacciones, metas, prestamos, deudas, config] = await Promise.all([
+    const [cuentas, transacciones, metas, prestamos, deudas, miembros, config] = await Promise.all([
       apiFetch('/cuentas'),
       apiFetch('/transacciones'),
       apiFetch('/metas'),
       apiFetch('/prestamos'),
       apiFetch('/deudas'),
+      apiFetch('/miembros'),
       apiFetch('/config')
     ]);
     this._db = {
-      cuentas, transacciones, metas, prestamos, deudas,
+      cuentas, transacciones, metas, prestamos, deudas, miembros,
       config: {
         tasaCambio: config.tasaCambio,
         tasaCambioAuto: prefs.tasaCambioAuto !== false,
@@ -87,7 +89,10 @@ const Storage = {
   // `onError` es opcional: se llama si el servidor rechaza el guardado, para que
   // la vista pueda revertir efectos secundarios optimistas (ej: saldo de una cuenta)
   // que hizo por fuera de este objeto antes de llamar a insert/update.
-  insert(collection, obj, onError) {
+  // `onSuccess(created)` es opcional: se llama cuando el servidor confirma el registro
+  // con su ID real — úsalo antes de mostrar botones de acción sobre el objeto recién
+  // creado, para no quedar apuntando al ID temporal.
+  insert(collection, obj, onError, onSuccess) {
     const tempId = 'tmp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     obj.id = tempId;
     this._db[collection].push(obj);
@@ -96,6 +101,7 @@ const Storage = {
       .then(created => {
         const idx = this._db[collection].findIndex(i => i.id === tempId);
         if (idx !== -1) this._db[collection][idx] = created;
+        if (onSuccess) onSuccess(created);
       })
       .catch(err => {
         this._db[collection] = this._db[collection].filter(i => i.id !== tempId);
@@ -143,6 +149,9 @@ const Storage = {
   },
   pagoDeuda(id, monto) {
     return apiFetch(`/deudas/${id}/pago`, { method: 'POST', body: JSON.stringify({ monto }) });
+  },
+  pagoMiembro(id, { monto, cuentaId, fecha }) {
+    return apiFetch(`/miembros/${id}/pago`, { method: 'POST', body: JSON.stringify({ monto, cuentaId, fecha }) });
   },
 
   setConfig(patch) {

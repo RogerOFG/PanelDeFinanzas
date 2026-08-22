@@ -17,6 +17,7 @@ app.use('/api/metas', requireAuth, require('./routes/metas'));
 app.use('/api/prestamos', requireAuth, require('./routes/prestamos'));
 app.use('/api/deudas', requireAuth, require('./routes/deudas'));
 app.use('/api/config', requireAuth, require('./routes/config'));
+app.use('/api/miembros', requireAuth, require('./routes/miembros'));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`FinBot backend escuchando en puerto ${PORT}`));

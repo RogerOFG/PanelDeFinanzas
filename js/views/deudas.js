@@ -55,10 +55,13 @@ const DeudasView = {
           ${d.activa ? `<div class="stat-sub">${dias >= 0 ? `Próximo pago en ${dias} día(s)` : 'Vencido'} ${enAlerta && !pagadoEsteCiclo ? '🔔' : ''}</div>` : ''}
           ${ultimoPago ? `<div class="stat-sub">Último pago: ${formatDate(ultimoPago.fecha)} · ${formatMoney(ultimoPago.monto, d.moneda)}</div>` : ''}
           ${d.notas ? `<div class="stat-sub">${escapeHtml(d.notas)}</div>` : ''}
-          ${d.activa ? (pagadoEsteCiclo
-            ? `<button class="${pagoBtnClass}" style="margin-top:10px;" disabled>Ya pagado este mes</button>`
-            : `<button class="${pagoBtnClass}" style="margin-top:10px;" data-pagar="${d.id}">Marcar pago de este mes</button>`
-          ) : ''}
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            ${d.activa ? (pagadoEsteCiclo
+              ? `<button class="${pagoBtnClass}" disabled>Ya pagado este mes</button>`
+              : `<button class="${pagoBtnClass}" data-pagar="${d.id}">Marcar pago de este mes</button>`
+            ) : ''}
+            <button class="btn small secondary" data-miembros="${d.id}">👥 Miembros (${this.miembrosDe(d.id).length})</button>
+          </div>
         </div>`;
     };
 
@@ -80,6 +83,7 @@ const DeudasView = {
     container.querySelector('#add-deuda').onclick = () => this.openForm();
     container.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => this.openForm(b.dataset.edit));
     container.querySelectorAll('[data-pagar]').forEach(b => b.onclick = () => this.marcarPago(b.dataset.pagar));
+    container.querySelectorAll('[data-miembros]').forEach(b => b.onclick = () => this.openMiembros(b.dataset.miembros));
     container.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
       UI.confirmAction('¿Eliminar esta deuda/suscripción?', () => {
         Storage.remove('deudas', b.dataset.del);
@@ -168,6 +172,221 @@ const DeudasView = {
       const umbral = d.recordatorioDias ?? 3;
       if (dias !== null && dias >= 0 && dias <= umbral) {
         UI.toast(`"${d.nombre}" vence en ${dias === 0 ? 'hoy' : dias + ' día(s)'} — ${formatMoney(d.monto, d.moneda)}`, dias === 0 ? 'danger' : 'warn');
+      }
+    });
+
+    this.pendingMemberReminders().forEach(r => {
+      UI.toast(`Falta marcar el pago de ${r.miembro.nombre} — ${r.deuda.nombre} (${formatMoney(r.miembro.montoMensual, r.deuda.moneda)})`, 'warn');
+    });
+  },
+
+  // Miembros activos que aún no han pagado este ciclo, cerca o después de la fecha de pago.
+  pendingMemberReminders() {
+    const deudas = Storage.get('deudas').filter(d => d.activa);
+    const resultado = [];
+    deudas.forEach(d => {
+      const dias = daysUntil(this.proximoPago(d.diaPago));
+      const umbral = d.recordatorioDias ?? 3;
+      if (dias === null || dias > umbral) return;
+      this.miembrosDe(d.id).filter(m => m.activo).forEach(m => {
+        if (!this.pagadoEsteCicloMiembro(m, d)) resultado.push({ miembro: m, deuda: d, dias });
+      });
+    });
+    return resultado;
+  },
+
+  miembrosDe(deudaId) {
+    return Storage.get('miembros').filter(m => String(m.deudaId) === String(deudaId));
+  },
+
+  pagadoEsteCicloMiembro(miembro, deuda) {
+    const inicio = this.cicloInicio(deuda.diaPago);
+    return (miembro.pagos || []).some(p => p.fecha >= inicio);
+  },
+
+  totalPagadoMiembro(miembro) {
+    return (miembro.pagos || []).reduce((s, p) => s + p.monto, 0);
+  },
+
+  openMiembros(deudaId) {
+    const deuda = Storage.find('deudas', deudaId);
+    const miembros = this.miembrosDe(deudaId);
+
+    const filaMiembro = (m) => {
+      const pagadoEsteCiclo = this.pagadoEsteCicloMiembro(m, deuda);
+      const totalPagado = this.totalPagadoMiembro(m);
+      const ultimoPago = (m.pagos || []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+      const montoEsteCiclo = pagadoEsteCiclo
+        ? (m.pagos || []).filter(p => p.fecha >= this.cicloInicio(deuda.diaPago)).reduce((s, p) => s + p.monto, 0)
+        : 0;
+      const diferencia = pagadoEsteCiclo ? montoEsteCiclo - m.montoMensual : -m.montoMensual;
+      let difTexto, difClase;
+      if (!pagadoEsteCiclo) { difTexto = `Debe ${formatMoney(m.montoMensual, deuda.moneda)}`; difClase = 'neg'; }
+      else if (diferencia === 0) { difTexto = 'Pagó exacto'; difClase = 'pos'; }
+      else if (diferencia > 0) { difTexto = `Pagó ${formatMoney(diferencia, deuda.moneda)} de más`; difClase = 'pos'; }
+      else { difTexto = `Le falta ${formatMoney(Math.abs(diferencia), deuda.moneda)}`; difClase = 'neg'; }
+
+      return `
+        <div class="card" style="margin-bottom:10px;">
+          <div class="section-header" style="margin-bottom:6px;">
+            <div>
+              <strong>${escapeHtml(m.nombre)}</strong>
+              ${!m.activo ? '<span class="pill tipo" style="margin-left:6px;">Inactivo</span>' : ''}
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn icon small secondary" data-editar-miembro="${m.id}">${ICON_EDIT}</button>
+              <button class="btn icon small danger" data-borrar-miembro="${m.id}">${ICON_TRASH}</button>
+            </div>
+          </div>
+          <div class="stat-sub">Cuota mensual: ${formatMoney(m.montoMensual, deuda.moneda)}</div>
+          <div class="stat-sub">Total acumulado pagado: <strong>${formatMoney(totalPagado, deuda.moneda)}</strong></div>
+          <div class="stat-sub"><span class="pill ${difClase}">${difTexto}</span></div>
+          ${ultimoPago ? `<div class="stat-sub">Último pago: ${formatDate(ultimoPago.fecha)} · ${formatMoney(ultimoPago.monto, deuda.moneda)}</div>` : ''}
+          ${m.activo ? `<button class="btn small ${pagadoEsteCiclo ? 'secondary' : 'warning'}" style="margin-top:8px;" data-pagar-miembro="${m.id}">${pagadoEsteCiclo ? 'Registrar otro pago' : 'Marcar que pagó'}</button>` : ''}
+        </div>`;
+    };
+
+    UI.openModal(`Miembros — ${escapeHtml(deuda.nombre)}`, `
+      <div id="miembros-lista">
+        ${miembros.length ? miembros.map(filaMiembro).join('') : '<div class="empty-state">Aún no has agregado miembros.</div>'}
+      </div>
+      <button class="btn secondary" id="add-miembro" style="width:100%;margin-top:6px;">+ Agregar miembro</button>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="cerrar-miembros">Cerrar</button>
+      </div>
+    `, {
+      onMount: (root) => {
+        root.querySelector('#cerrar-miembros').onclick = () => UI.closeModal();
+        root.querySelector('#add-miembro').onclick = () => this.openMiembroForm(deudaId);
+        root.querySelectorAll('[data-editar-miembro]').forEach(b => b.onclick = () => this.openMiembroForm(deudaId, b.dataset.editarMiembro));
+        root.querySelectorAll('[data-pagar-miembro]').forEach(b => b.onclick = () => this.openPagoMiembro(b.dataset.pagarMiembro));
+        root.querySelectorAll('[data-borrar-miembro]').forEach(b => b.onclick = () => {
+          UI.confirmAction('¿Eliminar este miembro? Se conservará el historial de transacciones ya creadas.', () => {
+            Storage.remove('miembros', b.dataset.borrarMiembro);
+            UI.closeModal();
+            DeudasView.render();
+            DeudasView.openMiembros(deudaId);
+          });
+        });
+      }
+    });
+  },
+
+  openMiembroForm(deudaId, id) {
+    const miembro = id ? Storage.find('miembros', id) : null;
+    UI.openModal(miembro ? 'Editar miembro' : 'Nuevo miembro', `
+      <form id="miembro-form">
+        <div class="form-row">
+          <label>Nombre</label>
+          <input type="text" name="nombre" required value="${escapeHtml(miembro?.nombre || '')}" placeholder="Ej: Mamá, Juan">
+        </div>
+        <div class="form-row">
+          <label>Cuánto paga cada mes</label>
+          <input type="number" step="0.01" name="montoMensual" required value="${miembro?.montoMensual ?? ''}">
+        </div>
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="activo" id="chk-miembro-activo" ${miembro?.activo !== false ? 'checked' : ''}>
+          <label for="chk-miembro-activo" style="margin:0;">Activo</label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
+          <button type="submit" class="btn">${miembro ? 'Guardar' : 'Agregar'}</button>
+        </div>
+      </form>
+    `, {
+      onMount: (root) => {
+        root.querySelector('#cancel-btn').onclick = () => { UI.closeModal(); DeudasView.openMiembros(deudaId); };
+        root.querySelector('#miembro-form').onsubmit = (e) => {
+          e.preventDefault();
+          const fd = new FormData(e.target);
+          const data = {
+            deudaId,
+            nombre: fd.get('nombre').trim(),
+            montoMensual: parseFloat(fd.get('montoMensual')),
+            activo: fd.get('activo') === 'on'
+          };
+          const refrescar = () => {
+            DeudasView.render();
+            DeudasView.openMiembros(deudaId);
+          };
+
+          if (miembro) {
+            Storage.update('miembros', miembro.id, data);
+            UI.closeModal();
+            refrescar();
+          } else {
+            // Espera la confirmación del servidor antes de reabrir la lista, para que
+            // el botón de "marcar pago" quede apuntando al ID real, no al temporal.
+            UI.closeModal();
+            Storage.insert('miembros', data, refrescar, refrescar);
+          }
+          UI.toast(miembro ? 'Miembro actualizado' : 'Miembro agregado');
+        };
+      }
+    });
+  },
+
+  openPagoMiembro(miembroId) {
+    const miembro = Storage.find('miembros', miembroId);
+    const deuda = Storage.find('deudas', miembro.deudaId);
+    const cuentas = Storage.get('cuentas');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+
+    UI.openModal(`Pago de ${escapeHtml(miembro.nombre)}`, `
+      <form id="pago-miembro-form">
+        <p class="text-dim mt-0">${escapeHtml(deuda.nombre)} — cuota: ${formatMoney(miembro.montoMensual, deuda.moneda)}</p>
+        <div class="form-row">
+          <label>¿Cuánto pagó?</label>
+          <input type="number" step="0.01" name="monto" required min="0.01" value="${miembro.montoMensual}">
+        </div>
+        <div class="form-row">
+          <label>¿A qué cuenta llegó el pago?</label>
+          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'pm-cuenta' })}
+        </div>
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="${todayISO()}">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
+          <button type="submit" class="btn">Registrar pago</button>
+        </div>
+      </form>
+    `, {
+      onMount: (root) => {
+        UI.initSelects(root);
+        root.querySelector('#cancel-btn').onclick = () => { UI.closeModal(); DeudasView.openMiembros(miembro.deudaId); };
+        root.querySelector('#pago-miembro-form').onsubmit = (e) => {
+          e.preventDefault();
+          const fd = new FormData(e.target);
+          const monto = parseFloat(fd.get('monto'));
+          const cuentaId = fd.get('cuentaId');
+          const fecha = fd.get('fecha') || todayISO();
+          const cuenta = Storage.find('cuentas', cuentaId);
+
+          // Optimista: refleja el pago y el ingreso en la cuenta de inmediato.
+          miembro.pagos = [...(miembro.pagos || []), { monto, cuentaId, fecha }];
+          if (cuenta) cuenta.saldo += monto;
+
+          Storage.pagoMiembro(miembroId, { monto, cuentaId, fecha }).then(() => {
+            // Refresca transacciones para que el ingreso auto-generado aparezca en la lista.
+            Storage.initFromServer().then(() => {
+              TransaccionesView.render();
+              if (typeof DashboardView !== 'undefined') DashboardView.render();
+            });
+          }).catch(err => {
+            miembro.pagos = miembro.pagos.filter(p => p !== miembro.pagos[miembro.pagos.length - 1]);
+            if (cuenta) cuenta.saldo -= monto;
+            CuentasView.render();
+            UI.toast('No se pudo registrar el pago: ' + err.message, 'danger');
+          });
+
+          UI.closeModal();
+          DeudasView.render();
+          CuentasView.render();
+          DeudasView.openMiembros(miembro.deudaId);
+          UI.toast(`Pago de ${miembro.nombre} registrado`);
+        };
       }
     });
   },

@@ -1,0 +1,15 @@
+{
+  "name": "FinBot — Panel de Finanzas",
+  "short_name": "FinBot",
+  "description": "Panel de finanzas personales: cuentas, transacciones, metas de ahorro, préstamos y deudas/suscripciones.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0c10",
+  "theme_color": "#0a0c10",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

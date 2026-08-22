@@ -40,7 +40,7 @@ const TransaccionesView = {
     }
 
     const todas = Storage.get('transacciones');
-    const categoriasDisponibles = [...new Set(todas.map(t => t.categoria).filter(Boolean))].sort();
+    const categoriasDisponibles = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO, ...todas.map(t => t.categoria).filter(Boolean)])].sort();
 
     let transacciones = todas.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
     if (this.filtro.cuentaId) transacciones = transacciones.filter(t => String(t.cuentaId) === String(this.filtro.cuentaId) || String(t.cuentaDestinoId) === String(this.filtro.cuentaId));

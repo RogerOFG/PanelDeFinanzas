@@ -95,12 +95,12 @@ const DashboardView = {
         </div>
         <div class="quick-actions">
           <button class="quick-action send" id="qa-send">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-            Enviar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l1.5 12h9L18 2M3 7h18M9 22h6"/></svg>
+            Gasto
           </button>
           <button class="quick-action add" id="qa-add">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Agregar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            Ingreso
           </button>
           <button class="quick-action history" id="qa-history">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V6a2 2 0 012-2h8l6 6v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M14 4v6h6"/></svg>
@@ -159,8 +159,8 @@ const DashboardView = {
     container.querySelectorAll('[data-nav]').forEach(btn => {
       btn.onclick = () => App.navigate(btn.dataset.nav);
     });
-    container.querySelector('#qa-send').onclick = () => TransaccionesView.openForm();
-    container.querySelector('#qa-add').onclick = () => CuentasView.openForm();
+    container.querySelector('#qa-send').onclick = () => TransaccionesView.openForm(null, 'gasto');
+    container.querySelector('#qa-add').onclick = () => TransaccionesView.openForm(null, 'ingreso');
     container.querySelector('#qa-history').onclick = () => App.navigate('transacciones');
   }
 };

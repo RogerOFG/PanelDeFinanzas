@@ -97,11 +97,11 @@ const TransaccionesView = {
     UI.toast('Transacción eliminada');
   },
 
-  openForm(id) {
+  openForm(id, tipoDefault) {
     const tx = id ? Storage.find('transacciones', id) : null;
     const cuentas = Storage.get('cuentas');
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
-    const tipoInicial = tx?.tipo || 'gasto';
+    const tipoInicial = tx?.tipo || tipoDefault || 'gasto';
     const categoriasIniciales = tipoInicial === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
 
     UI.openModal(tx ? 'Editar transacción' : 'Nueva transacción', `

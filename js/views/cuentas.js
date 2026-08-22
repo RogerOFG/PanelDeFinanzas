@@ -1,4 +1,27 @@
 const CuentasView = {
+  renderSkeleton() {
+    const container = document.getElementById('view-cuentas');
+    const card = `
+      <div class="account-card">
+        <div class="actions">
+          <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+          <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+        </div>
+        <div class="skeleton" style="width:30px;height:30px;border-radius:9px;margin-bottom:10px;"></div>
+        <div class="skeleton skeleton-line" style="width:56px;height:18px;border-radius:999px;display:inline-block;margin-right:6px;"></div>
+        <div class="skeleton skeleton-line" style="width:96px;height:18px;border-radius:999px;display:inline-block;"></div>
+        <div class="skeleton skeleton-line xl" style="width:65%;margin-top:10px;margin-bottom:8px;"></div>
+        <div class="skeleton skeleton-line" style="width:45%;"></div>
+      </div>`;
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="skeleton skeleton-line" style="width:140px;"></div>
+        <div class="skeleton" style="width:130px;height:40px;border-radius:10px;"></div>
+      </div>
+      <div class="grid cols-1">${card}${card}${card}</div>
+    `;
+  },
+
   render() {
     const cuentas = Storage.get('cuentas');
     const container = document.getElementById('view-cuentas');

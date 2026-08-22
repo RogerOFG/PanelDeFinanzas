@@ -1,6 +1,31 @@
 const PrestamosView = {
   filtro: 'todos',
 
+  renderSkeleton() {
+    const container = document.getElementById('view-prestamos');
+    const card = `
+      <div class="card">
+        <div class="section-header" style="margin-bottom:10px;">
+          <div class="skeleton skeleton-line" style="width:150px;"></div>
+          <div style="display:flex;gap:6px;">
+            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+          </div>
+        </div>
+        <div class="skeleton" style="height:7px;border-radius:99px;margin-bottom:8px;"></div>
+        <div class="skeleton skeleton-line" style="width:70%;margin-bottom:6px;"></div>
+        <div class="skeleton skeleton-line" style="width:55%;"></div>
+      </div>`;
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="skeleton skeleton-line" style="width:110px;"></div>
+        <div class="skeleton" style="width:150px;height:40px;border-radius:10px;"></div>
+      </div>
+      <div class="filters"><div class="skeleton" style="width:150px;height:40px;border-radius:10px;"></div></div>
+      <div class="grid cols-1">${card}${card}</div>
+    `;
+  },
+
   render() {
     const container = document.getElementById('view-prestamos');
     let prestamos = Storage.get('prestamos').slice().sort((a, b) => (a.completado - b.completado) || b.fecha.localeCompare(a.fecha));

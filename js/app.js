@@ -3,17 +3,21 @@ const App = {
   moreViews: ['prestamos', 'deudas', 'ajustes'],
 
   views: {
-    dashboard: { title: 'Resumen', renderer: () => DashboardView.render() },
-    cuentas: { title: 'Cuentas', renderer: () => CuentasView.render() },
-    transacciones: { title: 'Transacciones', renderer: () => TransaccionesView.render() },
-    metas: { title: 'Metas de Ahorro', renderer: () => MetasView.render() },
-    prestamos: { title: 'Préstamos', renderer: () => PrestamosView.render() },
-    deudas: { title: 'Deudas y Suscripciones', renderer: () => DeudasView.render() },
-    ajustes: { title: 'Ajustes', renderer: () => AjustesView.render() }
+    dashboard: { title: 'Resumen', renderer: () => DashboardView.render(), skeleton: () => DashboardView.renderSkeleton() },
+    cuentas: { title: 'Cuentas', renderer: () => CuentasView.render(), skeleton: () => CuentasView.renderSkeleton() },
+    transacciones: { title: 'Transacciones', renderer: () => TransaccionesView.render(), skeleton: () => TransaccionesView.renderSkeleton() },
+    metas: { title: 'Metas de Ahorro', renderer: () => MetasView.render(), skeleton: () => MetasView.renderSkeleton() },
+    prestamos: { title: 'Préstamos', renderer: () => PrestamosView.render(), skeleton: () => PrestamosView.renderSkeleton() },
+    deudas: { title: 'Deudas y Suscripciones', renderer: () => DeudasView.render(), skeleton: () => DeudasView.renderSkeleton() },
+    ajustes: { title: 'Ajustes', renderer: () => AjustesView.render(), skeleton: () => AjustesView.renderSkeleton() }
   },
 
   async init() {
-    DashboardView.renderSkeleton();
+    const savedView = localStorage.getItem('finbot_last_view');
+    this.currentView = (savedView && this.views[savedView]) ? savedView : 'dashboard';
+    this.activateView(this.currentView);
+    this.views[this.currentView].skeleton();
+
     try {
       await Storage.initFromServer();
     } catch (e) {
@@ -26,9 +30,6 @@ const App = {
     document.getElementById('nav-more-btn').addEventListener('click', () => this.openMore());
     document.getElementById('notif-btn').addEventListener('click', () => this.openNotifications());
 
-    const savedView = localStorage.getItem('finbot_last_view');
-    this.currentView = (savedView && this.views[savedView]) ? savedView : 'dashboard';
-    this.activateView(this.currentView);
     this.renderCurrentView();
     this.updateNotifDot();
     setTimeout(() => DeudasView.checkReminders(), 600);

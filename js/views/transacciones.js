@@ -30,6 +30,32 @@ function grupoLabel(fechaISO, hoy, ayer, inicioSemana) {
 const TransaccionesView = {
   filtro: { cuentaId: '', tipo: '', categoria: '' },
 
+  renderSkeleton() {
+    const container = document.getElementById('view-transacciones');
+    const item = `
+      <div class="tx-item">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:11px;flex-shrink:0;"></div>
+        <div class="tx-body">
+          <div class="skeleton skeleton-line" style="width:55%;margin-bottom:6px;"></div>
+          <div class="skeleton skeleton-line" style="width:75%;"></div>
+        </div>
+        <div class="skeleton skeleton-line" style="width:55px;"></div>
+      </div>`;
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="skeleton skeleton-line" style="width:120px;"></div>
+        <div class="skeleton" style="width:170px;height:40px;border-radius:10px;"></div>
+      </div>
+      <div class="filters">
+        <div class="skeleton" style="width:140px;height:40px;border-radius:10px;"></div>
+        <div class="skeleton" style="width:120px;height:40px;border-radius:10px;"></div>
+        <div class="skeleton" style="width:150px;height:40px;border-radius:10px;"></div>
+      </div>
+      <div class="skeleton skeleton-line" style="width:70px;margin:14px 0 10px;"></div>
+      <div class="tx-list">${item}${item}${item}${item}</div>
+    `;
+  },
+
   render() {
     const container = document.getElementById('view-transacciones');
     const cuentas = Storage.get('cuentas');

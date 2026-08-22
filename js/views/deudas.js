@@ -1,4 +1,38 @@
 const DeudasView = {
+  renderSkeleton() {
+    const container = document.getElementById('view-deudas');
+    const card = `
+      <div class="card">
+        <div class="section-header" style="margin-bottom:6px;">
+          <div>
+            <div class="skeleton skeleton-line" style="width:80px;height:18px;border-radius:999px;margin-bottom:8px;"></div>
+            <div class="skeleton skeleton-line" style="width:120px;"></div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+          </div>
+        </div>
+        <div class="skeleton skeleton-line lg" style="width:50%;margin:10px 0;"></div>
+        <div class="skeleton skeleton-line" style="width:65%;margin-bottom:6px;"></div>
+        <div class="skeleton skeleton-line" style="width:45%;margin-bottom:10px;"></div>
+        <div class="skeleton" style="width:200px;height:32px;border-radius:8px;"></div>
+      </div>`;
+    container.innerHTML = `
+      <div class="grid cols-1" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="skeleton skeleton-line" style="width:150px;margin-bottom:10px;"></div>
+          <div class="skeleton skeleton-line xl" style="width:55%;"></div>
+        </div>
+      </div>
+      <div class="section-header">
+        <div class="skeleton skeleton-line" style="width:150px;"></div>
+        <div class="skeleton" style="width:110px;height:40px;border-radius:10px;"></div>
+      </div>
+      <div class="grid cols-1">${card}${card}</div>
+    `;
+  },
+
   render() {
     const container = document.getElementById('view-deudas');
     const deudas = Storage.get('deudas').slice().sort((a, b) => (a.diaPago || 31) - (b.diaPago || 31));

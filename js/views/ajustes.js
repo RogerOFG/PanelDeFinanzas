@@ -1,4 +1,28 @@
 const AjustesView = {
+  renderSkeleton() {
+    const container = document.getElementById('view-ajustes');
+    container.innerHTML = `
+      <div class="grid cols-1">
+        <div class="card">
+          <div class="skeleton skeleton-line" style="width:190px;margin-bottom:16px;"></div>
+          <div class="skeleton" style="height:20px;width:70%;margin-bottom:16px;"></div>
+          <div class="skeleton" style="height:44px;border-radius:10px;margin-bottom:16px;"></div>
+          <div class="skeleton skeleton-line" style="width:60%;margin-bottom:16px;"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="skeleton" style="width:150px;height:40px;border-radius:10px;"></div>
+            <div class="skeleton" style="width:180px;height:40px;border-radius:10px;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="skeleton skeleton-line" style="width:60px;margin-bottom:10px;"></div>
+          <div class="skeleton skeleton-line" style="width:92%;margin-bottom:6px;"></div>
+          <div class="skeleton skeleton-line" style="width:70%;margin-bottom:16px;"></div>
+          <div class="skeleton" style="width:180px;height:40px;border-radius:10px;"></div>
+        </div>
+      </div>
+    `;
+  },
+
   render() {
     const container = document.getElementById('view-ajustes');
     const config = Storage.get('config');

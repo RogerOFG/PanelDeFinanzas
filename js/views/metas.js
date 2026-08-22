@@ -1,4 +1,28 @@
 const MetasView = {
+  renderSkeleton() {
+    const container = document.getElementById('view-metas');
+    const card = `
+      <div class="card">
+        <div class="section-header" style="margin-bottom:10px;">
+          <div class="skeleton skeleton-line" style="width:130px;"></div>
+          <div style="display:flex;gap:6px;">
+            <div class="skeleton" style="width:70px;height:32px;border-radius:8px;"></div>
+            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+          </div>
+        </div>
+        <div class="skeleton" style="height:7px;border-radius:99px;margin-bottom:8px;"></div>
+        <div class="skeleton skeleton-line" style="width:60%;"></div>
+      </div>`;
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="skeleton skeleton-line" style="width:130px;"></div>
+        <div class="skeleton" style="width:130px;height:40px;border-radius:10px;"></div>
+      </div>
+      <div class="grid cols-1">${card}${card}</div>
+    `;
+  },
+
   render() {
     const container = document.getElementById('view-metas');
     const metas = Storage.get('metas');

@@ -4,7 +4,7 @@ const AjustesView = {
     const config = Storage.get('config');
 
     container.innerHTML = `
-      <div class="grid cols-2">
+      <div class="grid cols-1">
         <div class="card">
           <p class="card-title">Tasa de cambio USD → COP</p>
           <div class="form-row checkbox-row">
@@ -23,18 +23,18 @@ const AjustesView = {
               : 'Modo manual: ingresa tú la tasa.'}
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn secondary" id="refresh-tasa">🔄 Actualizar ahora</button>
+            <button class="btn secondary" id="refresh-tasa" style="display:flex;align-items:center;gap:7px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+              Actualizar ahora
+            </button>
             <button class="btn" id="save-tasa" ${config.tasaCambioAuto ? 'disabled' : ''}>Guardar tasa manual</button>
           </div>
         </div>
         <div class="card">
           <p class="card-title">Datos</p>
-          <p class="text-dim" style="font-size:13px;">Tus datos se guardan localmente en este navegador (localStorage). Exporta un respaldo periódicamente.</p>
+          <p class="text-dim" style="font-size:13px;">Tus datos viven en una base de datos en la nube (no en este navegador), así que puedes entrar desde cualquier dispositivo con tu cuenta de Google.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
-            <button class="btn secondary" id="export-btn">Exportar respaldo (JSON)</button>
-            <button class="btn secondary" id="import-btn">Importar respaldo</button>
-            <input type="file" id="import-file" accept="application/json" style="display:none;">
-            <button class="btn danger" id="reset-btn">Borrar todos los datos</button>
+            <button class="btn secondary" id="export-btn">Descargar copia (JSON)</button>
           </div>
         </div>
       </div>
@@ -73,32 +73,6 @@ const AjustesView = {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       UI.toast('Respaldo descargado');
-    };
-
-    const fileInput = container.querySelector('#import-file');
-    container.querySelector('#import-btn').onclick = () => fileInput.click();
-    fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          Storage.importJSON(reader.result);
-          UI.toast('Datos importados correctamente');
-          App.renderCurrentView();
-        } catch (err) {
-          UI.toast('Archivo inválido', 'danger');
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    container.querySelector('#reset-btn').onclick = () => {
-      UI.confirmAction('Esto borrará TODOS tus datos (cuentas, transacciones, metas, préstamos, deudas). ¿Continuar?', () => {
-        Storage.resetAll();
-        UI.toast('Datos borrados');
-        App.renderCurrentView();
-      });
     };
   }
 };

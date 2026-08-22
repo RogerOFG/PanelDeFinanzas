@@ -9,7 +9,7 @@ const PrestamosView = {
     if (this.filtro === 'pendientes') prestamos = prestamos.filter(p => !p.completado);
 
     const cardHtml = (p) => {
-      const pendiente = p.monto - p.montoPagado;
+      const pendiente = Math.max(0, p.monto - p.montoPagado);
       const pct = p.monto > 0 ? Math.min(100, Math.round((p.montoPagado / p.monto) * 100)) : 0;
       const esDado = p.tipo === 'dado';
       return `
@@ -40,17 +40,17 @@ const PrestamosView = {
         <button class="btn" id="add-prestamo">+ Nuevo préstamo</button>
       </div>
       <div class="filters">
-        <select id="filter-prestamo">
-          <option value="todos">Todos</option>
-          <option value="dado">Que yo presté</option>
-          <option value="recibido">Que me prestaron</option>
-          <option value="pendientes">Solo pendientes</option>
-        </select>
+        ${UI.selectHTML('filter-prestamo', [
+          { value: 'todos', label: 'Todos' },
+          { value: 'dado', label: 'Que yo presté' },
+          { value: 'recibido', label: 'Que me prestaron' },
+          { value: 'pendientes', label: 'Solo pendientes' }
+        ], this.filtro, { id: 'filter-prestamo' })}
       </div>
-      <div class="grid cols-3">${prestamos.map(cardHtml).join('') || '<div class="empty-state card">No hay préstamos con este filtro.</div>'}</div>
+      <div class="grid cols-1">${prestamos.map(cardHtml).join('') || '<div class="empty-state card">No hay préstamos con este filtro.</div>'}</div>
     `;
 
-    container.querySelector('#filter-prestamo').value = this.filtro;
+    UI.initSelects(container);
     container.querySelector('#filter-prestamo').onchange = (e) => { this.filtro = e.target.value; this.render(); };
     container.querySelector('#add-prestamo').onclick = () => this.openForm();
     container.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => this.openForm(b.dataset.edit));
@@ -70,10 +70,10 @@ const PrestamosView = {
       <form id="prestamo-form">
         <div class="form-row">
           <label>Tipo</label>
-          <select name="tipo">
-            <option value="dado" ${prestamo?.tipo === 'dado' ? 'selected' : ''}>Yo presté dinero</option>
-            <option value="recibido" ${prestamo?.tipo === 'recibido' ? 'selected' : ''}>Me prestaron dinero</option>
-          </select>
+          ${UI.selectHTML('tipo', [
+            { value: 'dado', label: 'Yo presté dinero' },
+            { value: 'recibido', label: 'Me prestaron dinero' }
+          ], prestamo?.tipo || 'dado')}
         </div>
         <div class="form-row">
           <label>Contraparte (nombre)</label>
@@ -86,10 +86,7 @@ const PrestamosView = {
           </div>
           <div>
             <label>Moneda</label>
-            <select name="moneda">
-              <option value="COP" ${prestamo?.moneda === 'COP' || !prestamo ? 'selected' : ''}>COP</option>
-              <option value="USD" ${prestamo?.moneda === 'USD' ? 'selected' : ''}>USD</option>
-            </select>
+            ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], prestamo?.moneda || 'COP')}
           </div>
         </div>
         <div class="form-row">
@@ -117,6 +114,7 @@ const PrestamosView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initSelects(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#prestamo-form').onsubmit = (e) => {
           e.preventDefault();
@@ -147,7 +145,7 @@ const PrestamosView = {
 
   openPago(id) {
     const prestamo = Storage.find('prestamos', id);
-    const pendiente = prestamo.monto - prestamo.montoPagado;
+    const pendiente = Math.max(0, prestamo.monto - prestamo.montoPagado);
     UI.openModal('Registrar pago', `
       <form id="pago-form">
         <p class="text-dim mt-0">${escapeHtml(prestamo.contraparte)} — pendiente: ${formatMoney(pendiente, prestamo.moneda)}</p>
@@ -168,13 +166,10 @@ const PrestamosView = {
           const fd = new FormData(e.target);
           const monto = Math.min(parseFloat(fd.get('monto')), pendiente);
           const nuevoPagado = prestamo.montoPagado + monto;
-          const pagos = prestamo.pagos || [];
-          pagos.push({ monto, fecha: todayISO() });
-          Storage.update('prestamos', prestamo.id, {
-            montoPagado: nuevoPagado,
-            completado: nuevoPagado >= prestamo.monto,
-            pagos
-          });
+          prestamo.montoPagado = nuevoPagado;
+          prestamo.completado = nuevoPagado >= prestamo.monto;
+          prestamo.pagos = [...(prestamo.pagos || []), { monto, fecha: todayISO() }];
+          Storage.pagoPrestamo(prestamo.id, monto).catch(err => UI.toast('No se pudo guardar el pago: ' + err.message, 'danger'));
           UI.closeModal();
           PrestamosView.render();
           UI.toast(nuevoPagado >= prestamo.monto ? 'Préstamo saldado por completo' : 'Pago registrado');

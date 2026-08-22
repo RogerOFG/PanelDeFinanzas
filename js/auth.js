@@ -13,7 +13,7 @@
 const AUTH_CONFIG = {
   CLIENT_ID: '829352713763-4e538a8e08p6rlgdvks9tp35qo7qjem9.apps.googleusercontent.com',
   ALLOWED_EMAILS: [
-    // Agrega aquí tu(s) Gmail para restringir el acceso, ej: 'tucorreo@gmail.com'
+    'gamesalpha1@gmail.com',
   ],
   SESSION_KEY: 'finbot_session_v1'
 };
@@ -50,6 +50,10 @@ const Auth = {
 
   isSessionValid(session) {
     return session && session.exp && (Date.now() / 1000) < session.exp;
+  },
+
+  getToken() {
+    return this.currentUser ? this.currentUser.token : null;
   },
 
   showLogin() {
@@ -106,7 +110,8 @@ const Auth = {
       email,
       name: payload.name,
       picture: payload.picture,
-      exp: payload.exp
+      exp: payload.exp,
+      token: response.credential
     };
 
     localStorage.setItem(AUTH_CONFIG.SESSION_KEY, JSON.stringify(session));

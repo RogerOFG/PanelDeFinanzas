@@ -42,8 +42,8 @@ const MetasView = {
         <div class="text-dim">${activas.length} meta(s) activa(s)</div>
         <button class="btn" id="add-meta">+ Nueva meta</button>
       </div>
-      <div class="grid cols-3">${activas.map(cardHtml).join('') || '<div class="text-dim">Sin metas activas</div>'}</div>
-      ${completadas.length ? `<h3 style="margin-top:28px;">Completadas</h3><div class="grid cols-3">${completadas.map(cardHtml).join('')}</div>` : ''}
+      <div class="grid cols-1">${activas.map(cardHtml).join('') || '<div class="text-dim">Sin metas activas</div>'}</div>
+      ${completadas.length ? `<h3 style="margin-top:28px;">Completadas</h3><div class="grid cols-1">${completadas.map(cardHtml).join('')}</div>` : ''}
     `;
 
     container.querySelector('#add-meta').onclick = () => this.openForm();
@@ -61,7 +61,7 @@ const MetasView = {
   openForm(id) {
     const meta = id ? Storage.find('metas', id) : null;
     const cuentas = Storage.get('cuentas');
-    const cuentaOptions = `<option value="">Ninguna (solo seguimiento)</option>` + cuentas.map(c => `<option value="${c.id}" ${meta?.cuentaId === c.id ? 'selected' : ''}>${escapeHtml(accountLabel(c))}</option>`).join('');
+    const cuentaOpts = [{ value: '', label: 'Ninguna (solo seguimiento)' }, ...cuentas.map(c => ({ value: c.id, label: accountLabel(c) }))];
 
     UI.openModal(meta ? 'Editar meta' : 'Nueva meta de ahorro', `
       <form id="meta-form">
@@ -76,10 +76,7 @@ const MetasView = {
           </div>
           <div>
             <label>Moneda</label>
-            <select name="moneda">
-              <option value="COP" ${meta?.moneda === 'COP' || !meta ? 'selected' : ''}>COP</option>
-              <option value="USD" ${meta?.moneda === 'USD' ? 'selected' : ''}>USD</option>
-            </select>
+            ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], meta?.moneda || 'COP')}
           </div>
         </div>
         <div class="form-row">
@@ -92,7 +89,7 @@ const MetasView = {
         </div>
         <div class="form-row">
           <label>Vincular a cuenta (opcional)</label>
-          <select name="cuentaId">${cuentaOptions}</select>
+          ${UI.selectHTML('cuentaId', cuentaOpts, meta?.cuentaId || '')}
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -101,6 +98,7 @@ const MetasView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initSelects(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#meta-form').onsubmit = (e) => {
           e.preventDefault();
@@ -148,7 +146,9 @@ const MetasView = {
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
           const nuevoMonto = meta.montoActual + monto;
-          Storage.update('metas', meta.id, { montoActual: nuevoMonto, completada: nuevoMonto >= meta.montoObjetivo });
+          meta.montoActual = nuevoMonto;
+          meta.completada = nuevoMonto >= meta.montoObjetivo;
+          Storage.aporteMeta(meta.id, monto).catch(err => UI.toast('No se pudo guardar el aporte: ' + err.message, 'danger'));
           UI.closeModal();
           MetasView.render();
           const pct = Math.round((nuevoMonto / meta.montoObjetivo) * 100);

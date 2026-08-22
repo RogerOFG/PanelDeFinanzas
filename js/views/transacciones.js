@@ -14,7 +14,7 @@ const TransaccionesView = {
     }
 
     let transacciones = Storage.get('transacciones').slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
-    if (this.filtro.cuentaId) transacciones = transacciones.filter(t => t.cuentaId === this.filtro.cuentaId || t.cuentaDestinoId === this.filtro.cuentaId);
+    if (this.filtro.cuentaId) transacciones = transacciones.filter(t => String(t.cuentaId) === String(this.filtro.cuentaId) || String(t.cuentaDestinoId) === String(this.filtro.cuentaId));
     if (this.filtro.tipo) transacciones = transacciones.filter(t => t.tipo === this.filtro.tipo);
 
     const icons = {
@@ -43,27 +43,24 @@ const TransaccionesView = {
         </div>`;
     }).join('');
 
-    const cuentaOptions = cuentas.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
-
     container.innerHTML = `
       <div class="section-header">
         <div class="text-dim">${transacciones.length} movimiento(s)</div>
         <button class="btn" id="add-tx">+ Nueva transacción</button>
       </div>
       <div class="filters">
-        <select id="filter-cuenta"><option value="">Todas las cuentas</option>${cuentaOptions}</select>
-        <select id="filter-tipo">
-          <option value="">Todos los tipos</option>
-          <option value="ingreso">Ingresos</option>
-          <option value="gasto">Gastos</option>
-          <option value="transferencia">Transferencias</option>
-        </select>
+        ${UI.selectHTML('filter-cuenta', [{ value: '', label: 'Todas las cuentas' }, ...cuentas.map(c => ({ value: c.id, label: c.nombre }))], this.filtro.cuentaId, { id: 'filter-cuenta' })}
+        ${UI.selectHTML('filter-tipo', [
+          { value: '', label: 'Todos los tipos' },
+          { value: 'ingreso', label: 'Ingresos' },
+          { value: 'gasto', label: 'Gastos' },
+          { value: 'transferencia', label: 'Transferencias' }
+        ], this.filtro.tipo, { id: 'filter-tipo' })}
       </div>
       ${transacciones.length === 0 ? '<div class="empty-state card">No hay transacciones con este filtro.</div>' : `<div class="tx-list">${rows}</div>`}
     `;
 
-    container.querySelector('#filter-cuenta').value = this.filtro.cuentaId;
-    container.querySelector('#filter-tipo').value = this.filtro.tipo;
+    UI.initSelects(container);
     container.querySelector('#filter-cuenta').onchange = (e) => { this.filtro.cuentaId = e.target.value; this.render(); };
     container.querySelector('#filter-tipo').onchange = (e) => { this.filtro.tipo = e.target.value; this.render(); };
     container.querySelector('#add-tx').onclick = () => this.openForm();
@@ -98,25 +95,25 @@ const TransaccionesView = {
 
   openForm() {
     const cuentas = Storage.get('cuentas');
-    const cuentaOptions = cuentas.map(c => `<option value="${c.id}">${escapeHtml(accountLabel(c))}</option>`).join('');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
 
     UI.openModal('Nueva transacción', `
       <form id="tx-form">
         <div class="form-row">
           <label>Tipo</label>
-          <select name="tipo" id="tx-tipo">
-            <option value="gasto">Gasto</option>
-            <option value="ingreso">Ingreso</option>
-            <option value="transferencia">Transferencia entre cuentas</option>
-          </select>
+          ${UI.selectHTML('tipo', [
+            { value: 'gasto', label: 'Gasto' },
+            { value: 'ingreso', label: 'Ingreso' },
+            { value: 'transferencia', label: 'Transferencia entre cuentas' }
+          ], 'gasto', { id: 'tx-tipo' })}
         </div>
         <div class="form-row">
           <label id="cuenta-label">Cuenta</label>
-          <select name="cuentaId" required>${cuentaOptions}</select>
+          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'tx-cuenta' })}
         </div>
         <div class="form-row" id="cuenta-destino-row" style="display:none;">
           <label>Cuenta destino</label>
-          <select name="cuentaDestinoId">${cuentaOptions}</select>
+          ${UI.selectHTML('cuentaDestinoId', cuentaOpts, cuentaOpts[0]?.value, { id: 'tx-cuenta-destino' })}
         </div>
         <div class="form-row inline">
           <div>
@@ -125,7 +122,7 @@ const TransaccionesView = {
           </div>
           <div id="categoria-wrap">
             <label>Categoría</label>
-            <select name="categoria" id="tx-categoria"></select>
+            ${UI.selectHTML('categoria', CATEGORIAS_GASTO, CATEGORIAS_GASTO[0], { id: 'tx-categoria' })}
           </div>
         </div>
         <div class="form-row">
@@ -143,22 +140,23 @@ const TransaccionesView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initSelects(root);
         const tipoSelect = root.querySelector('#tx-tipo');
         const destinoRow = root.querySelector('#cuenta-destino-row');
         const categoriaWrap = root.querySelector('#categoria-wrap');
-        const categoriaSelect = root.querySelector('#tx-categoria');
+        const categoriaSelectWrap = categoriaWrap.querySelector('.custom-select');
 
         function updateCategorias() {
           const tipo = tipoSelect.value;
           if (tipo === 'transferencia') { categoriaWrap.style.display = 'none'; return; }
           categoriaWrap.style.display = '';
           const opciones = tipo === 'gasto' ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
-          categoriaSelect.innerHTML = opciones.map(c => `<option value="${c}">${c}</option>`).join('');
+          UI.setSelectOptions(categoriaSelectWrap, opciones, opciones[0]);
         }
         function updateDestino() {
           destinoRow.style.display = tipoSelect.value === 'transferencia' ? '' : 'none';
         }
-        tipoSelect.onchange = () => { updateCategorias(); updateDestino(); };
+        tipoSelect.addEventListener('change', () => { updateCategorias(); updateDestino(); });
         updateCategorias(); updateDestino();
 
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();

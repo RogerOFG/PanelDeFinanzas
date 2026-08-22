@@ -34,7 +34,7 @@ const CuentasView = {
         <div class="text-dim">${cuentas.length} cuenta(s) registrada(s)</div>
         <button class="btn" id="add-cuenta">+ Nueva cuenta</button>
       </div>
-      <div class="grid cols-2">${cards}</div>
+      <div class="grid cols-1">${cards}</div>
     `;
 
     container.querySelector('#add-cuenta').onclick = () => CuentasView.openForm();
@@ -44,7 +44,7 @@ const CuentasView = {
     container.querySelectorAll('[data-del]').forEach(btn => {
       btn.onclick = () => {
         const id = btn.dataset.del;
-        const usada = Storage.get('transacciones').some(t => t.cuentaId === id || t.cuentaDestinoId === id);
+        const usada = Storage.get('transacciones').some(t => String(t.cuentaId) === String(id) || String(t.cuentaDestinoId) === String(id));
         const msg = usada
           ? '¿Eliminar esta cuenta? Tiene transacciones asociadas que conservarán la referencia histórica.'
           : '¿Eliminar esta cuenta?';
@@ -68,19 +68,19 @@ const CuentasView = {
         <div class="form-row inline">
           <div>
             <label>Tipo de cuenta</label>
-            <select name="tipo">
-              <option value="efectivo" ${cuenta?.tipo === 'efectivo' ? 'selected' : ''}>Efectivo</option>
-              <option value="banco" ${cuenta?.tipo === 'banco' ? 'selected' : ''}>Cuenta bancaria</option>
-              <option value="inversion" ${cuenta?.tipo === 'inversion' ? 'selected' : ''}>Inversión</option>
-              <option value="terceros" ${cuenta?.tipo === 'terceros' ? 'selected' : ''}>Cuenta de terceros</option>
-            </select>
+            ${UI.selectHTML('tipo', [
+              { value: 'efectivo', label: 'Efectivo' },
+              { value: 'banco', label: 'Cuenta bancaria' },
+              { value: 'inversion', label: 'Inversión' },
+              { value: 'terceros', label: 'Cuenta de terceros' }
+            ], cuenta?.tipo || 'efectivo')}
           </div>
           <div>
             <label>Moneda</label>
-            <select name="moneda">
-              <option value="COP" ${cuenta?.moneda === 'COP' || !cuenta ? 'selected' : ''}>COP (Pesos)</option>
-              <option value="USD" ${cuenta?.moneda === 'USD' ? 'selected' : ''}>USD (Dólares)</option>
-            </select>
+            ${UI.selectHTML('moneda', [
+              { value: 'COP', label: 'COP (Pesos)' },
+              { value: 'USD', label: 'USD (Dólares)' }
+            ], cuenta?.moneda || 'COP')}
           </div>
         </div>
         <div class="form-row">
@@ -102,6 +102,7 @@ const CuentasView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initSelects(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#cuenta-form').onsubmit = (e) => {
           e.preventDefault();

@@ -12,13 +12,23 @@ const App = {
     ajustes: { title: 'Ajustes', renderer: () => AjustesView.render() }
   },
 
-  init() {
-    Storage.load();
+  async init() {
+    document.getElementById('view-dashboard').innerHTML = '<div class="empty-state">Cargando tus datos…</div>';
+    try {
+      await Storage.initFromServer();
+    } catch (e) {
+      UI.toast('No se pudo conectar con el servidor: ' + e.message, 'danger');
+      return;
+    }
     document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
       btn.addEventListener('click', () => this.navigate(btn.dataset.view));
     });
     document.getElementById('nav-more-btn').addEventListener('click', () => this.openMore());
     document.getElementById('notif-btn').addEventListener('click', () => this.openNotifications());
+
+    const savedView = localStorage.getItem('finbot_last_view');
+    this.currentView = (savedView && this.views[savedView]) ? savedView : 'dashboard';
+    this.activateView(this.currentView);
     this.renderCurrentView();
     this.updateNotifDot();
     setTimeout(() => DeudasView.checkReminders(), 600);
@@ -26,7 +36,7 @@ const App = {
   },
 
   pendingReminders() {
-    const deudas = Storage.get('deudas').filter(d => d.activa);
+    const deudas = Storage.get('deudas').filter(d => d.activa && !DeudasView.pagadoEsteCiclo(d));
     return deudas
       .map(d => ({ ...d, prox: DeudasView.proximoPago(d.diaPago) }))
       .map(d => ({ ...d, dias: daysUntil(d.prox) }))
@@ -60,11 +70,16 @@ const App = {
 
   navigate(view) {
     this.currentView = view;
+    localStorage.setItem('finbot_last_view', view);
+    this.activateView(view);
+    this.renderCurrentView();
+  },
+
+  activateView(view) {
     document.querySelectorAll('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
     document.getElementById('nav-more-btn').classList.toggle('active', this.moreViews.includes(view));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
     document.getElementById('view-title').textContent = this.views[view].title;
-    this.renderCurrentView();
   },
 
   openMore() {

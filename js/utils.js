@@ -3,8 +3,10 @@
 function formatMoney(monto, moneda) {
   const n = Number(monto || 0);
   const symbol = moneda === 'USD' ? 'US$' : '$';
-  const formatted = n.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  return `${symbol}${formatted}`;
+  const sign = n < 0 ? '-' : '';
+  const maxDecimals = moneda === 'USD' ? 2 : 0; // el peso colombiano no se muestra con centavos
+  const formatted = Math.abs(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: maxDecimals });
+  return `${sign}${symbol}${formatted}`;
 }
 
 function toBaseCurrency(monto, moneda) {

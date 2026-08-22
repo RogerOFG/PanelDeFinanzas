@@ -240,8 +240,8 @@ const TransaccionesView = {
             }
           }
 
+          const destino = tipo === 'transferencia' ? Storage.find('cuentas', destinoId) : null;
           if (tipo === 'transferencia') {
-            const destino = Storage.find('cuentas', destinoId);
             cuenta.saldo -= monto;
             destino.saldo += monto;
           } else if (tipo === 'ingreso') {
@@ -249,6 +249,34 @@ const TransaccionesView = {
           } else {
             cuenta.saldo -= monto;
           }
+
+          // Si el servidor rechaza el guardado, revierte el efecto optimista sobre
+          // los saldos para que la UI no quede mostrando un cambio que no se guardó.
+          const revertirSaldos = () => {
+            if (tipo === 'transferencia') {
+              cuenta.saldo += monto;
+              destino.saldo -= monto;
+            } else if (tipo === 'ingreso') {
+              cuenta.saldo -= monto;
+            } else {
+              cuenta.saldo += monto;
+            }
+            if (tx) {
+              const oldCuenta = Storage.find('cuentas', tx.cuentaId);
+              if (oldCuenta) {
+                if (tx.tipo === 'ingreso') oldCuenta.saldo += tx.monto;
+                else if (tx.tipo === 'gasto') oldCuenta.saldo -= tx.monto;
+                else if (tx.tipo === 'transferencia') {
+                  oldCuenta.saldo -= tx.monto;
+                  const oldDestino = Storage.find('cuentas', tx.cuentaDestinoId);
+                  if (oldDestino) oldDestino.saldo += tx.monto;
+                }
+              }
+            }
+            TransaccionesView.render();
+            CuentasView.render();
+            if (typeof DashboardView !== 'undefined') DashboardView.render();
+          };
 
           const data = {
             cuentaId,
@@ -260,8 +288,8 @@ const TransaccionesView = {
             fecha: fd.get('fecha') || todayISO()
           };
 
-          if (tx) Storage.update('transacciones', tx.id, data);
-          else Storage.insert('transacciones', data);
+          if (tx) Storage.update('transacciones', tx.id, data, revertirSaldos);
+          else Storage.insert('transacciones', data, revertirSaldos);
 
           UI.closeModal();
           TransaccionesView.render();

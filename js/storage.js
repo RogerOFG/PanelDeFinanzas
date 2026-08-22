@@ -84,7 +84,10 @@ const Storage = {
     return this._db[collection].find(i => String(i.id) === String(id));
   },
 
-  insert(collection, obj) {
+  // `onError` es opcional: se llama si el servidor rechaza el guardado, para que
+  // la vista pueda revertir efectos secundarios optimistas (ej: saldo de una cuenta)
+  // que hizo por fuera de este objeto antes de llamar a insert/update.
+  insert(collection, obj, onError) {
     const tempId = 'tmp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     obj.id = tempId;
     this._db[collection].push(obj);
@@ -96,20 +99,26 @@ const Storage = {
       })
       .catch(err => {
         this._db[collection] = this._db[collection].filter(i => i.id !== tempId);
+        if (onError) onError(err);
         UI.toast('No se pudo guardar en el servidor: ' + err.message, 'danger');
       });
 
     return obj;
   },
 
-  update(collection, id, patch) {
+  update(collection, id, patch, onError) {
     const item = this.find(collection, id);
     if (!item) return null;
+    const before = { ...item };
     Object.assign(item, patch);
 
     apiFetch(`${ENDPOINTS[collection]}/${id}`, { method: 'PUT', body: JSON.stringify(item) })
       .then(updated => Object.assign(item, updated))
-      .catch(err => UI.toast('No se pudo actualizar en el servidor: ' + err.message, 'danger'));
+      .catch(err => {
+        Object.assign(item, before);
+        if (onError) onError(err);
+        UI.toast('No se pudo actualizar en el servidor: ' + err.message, 'danger');
+      });
 
     return item;
   },

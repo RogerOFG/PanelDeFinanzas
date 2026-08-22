@@ -79,9 +79,12 @@
 <div id="toast-root" class="toast-root"></div>
 
 <script>
-  // URL del backend de FinBot. En local usa el puerto 4000; al desplegar,
-  // cambia esto a la URL pública del backend (ej: https://finbot-api.duckdns.org/api).
-  window.FINBOT_API_BASE = 'http://localhost:4000/api';
+  // En local (localhost/127.0.0.1) apunta al backend en el puerto 4000.
+  // En producción, nginx sirve el front y el backend bajo el mismo dominio,
+  // así que basta una ruta relativa.
+  window.FINBOT_API_BASE = (['localhost', '127.0.0.1'].includes(location.hostname))
+    ? 'http://localhost:4000/api'
+    : '/api';
 </script>
 <script src="js/storage.js"></script>
 <script src="js/utils.js"></script>

@@ -1,4 +1,59 @@
 const DashboardView = {
+  renderSkeleton() {
+    const container = document.getElementById('view-dashboard');
+    const skeletonAccount = `
+      <div class="account-mini">
+        <div class="skeleton" style="width:30px;height:30px;border-radius:9px;margin-bottom:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:80%;margin-bottom:6px;"></div>
+        <div class="skeleton skeleton-line" style="width:40%;margin-bottom:10px;"></div>
+        <div class="skeleton skeleton-line lg" style="width:70%;"></div>
+      </div>`;
+    const skeletonTx = `
+      <div class="tx-item">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:11px;flex-shrink:0;"></div>
+        <div class="tx-body">
+          <div class="skeleton skeleton-line" style="width:60%;margin-bottom:6px;"></div>
+          <div class="skeleton skeleton-line" style="width:40%;"></div>
+        </div>
+        <div class="skeleton skeleton-line" style="width:60px;"></div>
+      </div>`;
+
+    container.innerHTML = `
+      <div class="dashboard-greeting">
+        <div class="skeleton skeleton-line" style="width:80px;margin-bottom:6px;"></div>
+        <div class="skeleton skeleton-line lg" style="width:160px;"></div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-glow"></div>
+        <div class="skeleton skeleton-line" style="width:110px;background-color:rgba(255,255,255,0.1);margin-bottom:12px;"></div>
+        <div class="skeleton skeleton-line xl" style="width:70%;background-color:rgba(255,255,255,0.16);margin-bottom:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:130px;background-color:rgba(255,255,255,0.1);margin-bottom:20px;"></div>
+        <div class="quick-actions">
+          <div class="skeleton" style="height:44px;border-radius:12px;background-color:rgba(255,255,255,0.06);"></div>
+          <div class="skeleton" style="height:44px;border-radius:12px;background-color:rgba(255,255,255,0.06);"></div>
+          <div class="skeleton" style="height:44px;border-radius:12px;background-color:rgba(255,255,255,0.06);"></div>
+        </div>
+      </div>
+
+      <div class="mini-stats">
+        <div class="mini-stat">
+          <div class="skeleton skeleton-line" style="width:70%;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-line lg" style="width:55%;"></div>
+        </div>
+        <div class="mini-stat">
+          <div class="skeleton skeleton-line" style="width:70%;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-line lg" style="width:55%;"></div>
+        </div>
+      </div>
+
+      <div class="skeleton skeleton-line" style="width:90px;margin-bottom:12px;"></div>
+      <div class="accounts-scroll">${skeletonAccount}${skeletonAccount}${skeletonAccount}</div>
+
+      <div class="skeleton skeleton-line" style="width:160px;margin-bottom:12px;"></div>
+      <div class="tx-list" style="margin-bottom:24px;">${skeletonTx}${skeletonTx}${skeletonTx}</div>
+    `;
+  },
+
   render() {
     const container = document.getElementById('view-dashboard');
     const cuentas = Storage.get('cuentas');

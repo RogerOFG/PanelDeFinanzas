@@ -13,7 +13,7 @@ const App = {
   },
 
   async init() {
-    document.getElementById('view-dashboard').innerHTML = '<div class="empty-state">Cargando tus datos…</div>';
+    DashboardView.renderSkeleton();
     try {
       await Storage.initFromServer();
     } catch (e) {

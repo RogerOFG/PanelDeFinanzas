@@ -155,25 +155,30 @@ const DeudasView = {
 
   marcarPago(id) {
     const deuda = Storage.find('deudas', id);
-    if (deuda.tipoPago === 'variable') {
-      this.openPagoVariable(deuda);
-      return;
-    }
-    const monto = deuda.monto;
-    deuda.historialPagos = [...(deuda.historialPagos || []), { fecha: todayISO(), monto }];
-    deuda.montoPagado = (deuda.montoPagado || 0) + monto;
-    Storage.pagoDeuda(id, monto).catch(err => UI.toast('No se pudo guardar el pago: ' + err.message, 'danger'));
-    this.render();
-    UI.toast(`Pago de "${deuda.nombre}" registrado`);
+    this.openPagoDeuda(deuda);
   },
 
-  openPagoVariable(deuda) {
-    UI.openModal('Registrar pago', `
+  openPagoDeuda(deuda) {
+    const cuentas = Storage.get('cuentas');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+
+    UI.openModal(`Pago de ${escapeHtml(deuda.nombre)}`, `
       <form id="pago-deuda-form">
-        <p class="text-dim mt-0">${escapeHtml(deuda.nombre)}</p>
         <div class="form-row">
-          <label>¿Cuánto pagaste este mes?</label>
+          <label>${deuda.tipoPago === 'variable' ? '¿Cuánto pagaste este mes?' : 'Monto'}</label>
           ${UI.moneyInputHTML('monto', deuda.monto ?? '', { required: true })}
+        </div>
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="soloRegistro" id="pd-solo-registro">
+          <label for="pd-solo-registro" style="margin:0;">Ya está reflejado en mi saldo (no crear un gasto nuevo)</label>
+        </div>
+        <div class="form-row" id="pd-cuenta-row">
+          <label>¿De qué cuenta salió el pago?</label>
+          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'pd-cuenta' })}
+        </div>
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="${todayISO()}">
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -182,17 +187,45 @@ const DeudasView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initSelects(root);
         UI.initMoneyInputs(root);
+
+        const soloRegistroChk = root.querySelector('#pd-solo-registro');
+        const cuentaRow = root.querySelector('#pd-cuenta-row');
+        soloRegistroChk.addEventListener('change', () => {
+          cuentaRow.style.display = soloRegistroChk.checked ? 'none' : '';
+        });
+
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-deuda-form').onsubmit = (e) => {
           e.preventDefault();
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
-          deuda.historialPagos = [...(deuda.historialPagos || []), { fecha: todayISO(), monto }];
+          const soloRegistro = fd.get('soloRegistro') === 'on';
+          const cuentaId = soloRegistro ? null : fd.get('cuentaId');
+          const fecha = fd.get('fecha') || todayISO();
+          const cuenta = soloRegistro ? null : Storage.find('cuentas', cuentaId);
+
+          deuda.historialPagos = [...(deuda.historialPagos || []), { fecha, monto }];
           deuda.montoPagado = (deuda.montoPagado || 0) + monto;
-          Storage.pagoDeuda(deuda.id, monto).catch(err => UI.toast('No se pudo guardar el pago: ' + err.message, 'danger'));
+          if (cuenta) cuenta.saldo -= monto;
+
+          Storage.pagoDeuda(deuda.id, { monto, cuentaId, fecha, soloRegistro }).then(() => {
+            if (!soloRegistro) {
+              Storage.initFromServer().then(() => {
+                TransaccionesView.render();
+                if (typeof DashboardView !== 'undefined') DashboardView.render();
+              });
+            }
+          }).catch(err => {
+            if (cuenta) cuenta.saldo += monto;
+            CuentasView.render();
+            UI.toast('No se pudo guardar el pago: ' + err.message, 'danger');
+          });
+
           UI.closeModal();
           DeudasView.render();
+          CuentasView.render();
           UI.toast(`Pago de "${deuda.nombre}" registrado`);
         };
       }

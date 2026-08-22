@@ -40,17 +40,46 @@ router.put('/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
+// Marca el pago que TÚ le haces a la plataforma (Spotify, Netflix, etc.).
+// Por defecto crea el gasto correspondiente en Transacciones y resta el saldo
+// de la cuenta elegida. Si `soloRegistro` es true, solo actualiza el contador
+// de la deuda (sin tocar cuentas ni transacciones) — para pagos que ya se
+// hicieron antes de tener esta opción, o que ya están reflejados en el saldo.
 router.post('/:id/pago', async (req, res) => {
-  const { monto } = req.body;
+  const { monto, cuentaId, fecha, soloRegistro } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(`INSERT INTO deuda_pagos (deuda_id, monto) VALUES ($1,$2);`, [req.params.id, monto]);
+
+    const deuda = await client.query(`SELECT * FROM deudas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    if (!deuda.rows[0]) throw new Error('Deuda no encontrada');
+
+    let transaccionId = null;
+    if (!soloRegistro) {
+      const cuenta = await client.query(`SELECT * FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [cuentaId, req.usuario.id]);
+      if (!cuenta.rows[0]) throw new Error('Cuenta no encontrada');
+
+      const tx = await client.query(
+        `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
+         VALUES ($1,$2,'gasto',$3,'servicios',$4, COALESCE($5, CURRENT_DATE))
+         RETURNING id;`,
+        [req.usuario.id, cuentaId, monto, `Pago de suscripción — ${deuda.rows[0].nombre}`, fecha || null]
+      );
+      transaccionId = tx.rows[0].id;
+      await client.query(`UPDATE cuentas SET saldo = saldo - $1 WHERE id=$2;`, [monto, cuentaId]);
+    }
+
+    await client.query(
+      `INSERT INTO deuda_pagos (deuda_id, monto, cuenta_id, transaccion_id, fecha)
+       VALUES ($1,$2,$3,$4, COALESCE($5, CURRENT_DATE));`,
+      [req.params.id, monto, soloRegistro ? null : cuentaId, transaccionId, fecha || null]
+    );
+
     const { rows } = await client.query(
       `UPDATE deudas SET monto_pagado = monto_pagado + $1 WHERE id=$2 AND usuario_id=$3 RETURNING ${SELECT_FIELDS};`,
       [monto, req.params.id, req.usuario.id]
     );
-    if (!rows[0]) throw new Error('Deuda no encontrada');
+
     await client.query('COMMIT');
     res.status(201).json(rows[0]);
   } catch (e) {

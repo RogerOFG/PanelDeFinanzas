@@ -37,7 +37,7 @@ const DashboardView = {
         <div class="account-mini-icon" style="background:color-mix(in srgb, ${ACCOUNT_TIPO_COLOR[c.tipo]} 15%, transparent);color:${ACCOUNT_TIPO_COLOR[c.tipo]};">${ICON_ACCOUNT_TIPO[c.tipo] || ICON_ACCOUNT_TIPO.banco}</div>
         <div class="account-mini-name">${escapeHtml(c.nombre)}</div>
         <div class="account-mini-currency">${c.moneda}</div>
-        <div class="account-mini-balance">${formatMoney(c.saldo, c.moneda)}</div>
+        <div class="account-mini-balance" data-count="${c.saldo}" data-count-currency="${c.moneda}">${formatMoney(0, c.moneda)}</div>
       </div>
     `).join('') || '<div class="empty-state card" style="width:100%;">Aún no tienes cuentas registradas.</div>';
 
@@ -52,7 +52,7 @@ const DashboardView = {
             <div class="tx-title">${escapeHtml(titulo)}</div>
             <div class="tx-sub">${escapeHtml(cuenta ? cuenta.nombre : '—')} · ${formatDate(t.fecha)}</div>
           </div>
-          <div class="tx-amount ${t.tipo}">${signo}${formatMoney(t.monto, cuenta?.moneda)}</div>
+          <div class="tx-amount ${t.tipo}" data-count="${t.monto}" data-count-currency="${cuenta?.moneda || 'COP'}" data-count-prefix="${signo}">${signo}${formatMoney(0, cuenta?.moneda)}</div>
         </div>`;
     }).join('') || '<div class="empty-state">Sin movimientos aún.</div>';
 
@@ -88,10 +88,10 @@ const DashboardView = {
       <div class="hero-card">
         <div class="hero-glow"></div>
         <div class="hero-label">Patrimonio total</div>
-        <div class="hero-value">${formatMoney(totalBase, 'COP')}</div>
+        <div class="hero-value" data-count="${totalBase}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
         <div class="hero-trend ${balanceMes >= 0 ? 'pos' : 'neg'}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="${balanceMes >= 0 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'}"/></svg>
-          ${balanceMes >= 0 ? '+' : '-'}${formatMoney(Math.abs(balanceMes), 'COP')} este mes
+          <span data-count="${Math.abs(balanceMes)}" data-count-currency="COP" data-count-prefix="${balanceMes >= 0 ? '+' : '-'}">${balanceMes >= 0 ? '+' : '-'}${formatMoney(0, 'COP')}</span> este mes
         </div>
         <div class="quick-actions">
           <button class="quick-action send" id="qa-send">
@@ -112,11 +112,11 @@ const DashboardView = {
       <div class="mini-stats">
         <div class="mini-stat">
           <div class="mini-stat-label">Ingresos del mes</div>
-          <div class="mini-stat-value pos">${formatMoney(ingresosMes, 'COP')}</div>
+          <div class="mini-stat-value pos" data-count="${ingresosMes}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
         </div>
         <div class="mini-stat">
           <div class="mini-stat-label">Gastos del mes</div>
-          <div class="mini-stat-value neg">${formatMoney(gastosMes, 'COP')}</div>
+          <div class="mini-stat-value neg" data-count="${gastosMes}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
         </div>
       </div>
 
@@ -147,11 +147,11 @@ const DashboardView = {
       <div class="mini-stats" style="margin-bottom:0;">
         <div class="mini-stat">
           <div class="mini-stat-label">Me deben</div>
-          <div class="mini-stat-value" style="color:var(--accent-2);">${formatMoney(prestado, 'COP')}</div>
+          <div class="mini-stat-value" style="color:var(--accent-2);" data-count="${prestado}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
         </div>
         <div class="mini-stat">
           <div class="mini-stat-label">Debo</div>
-          <div class="mini-stat-value neg">${formatMoney(debido, 'COP')}</div>
+          <div class="mini-stat-value neg" data-count="${debido}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
         </div>
       </div>
     `;
@@ -162,5 +162,7 @@ const DashboardView = {
     container.querySelector('#qa-send').onclick = () => TransaccionesView.openForm(null, 'gasto');
     container.querySelector('#qa-add').onclick = () => TransaccionesView.openForm(null, 'ingreso');
     container.querySelector('#qa-history').onclick = () => App.navigate('transacciones');
+
+    animateCounters(container);
   }
 };

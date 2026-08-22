@@ -80,7 +80,7 @@ const TransaccionesView = {
             <div class="tx-title">${escapeHtml(titulo)}</div>
             <div class="tx-sub">${sub}</div>
           </div>
-          <div class="tx-amount ${t.tipo}">${signo}${formatMoney(t.monto, cuenta?.moneda)}</div>
+          <div class="tx-amount ${t.tipo}" data-count="${t.monto}" data-count-currency="${cuenta?.moneda || 'COP'}" data-count-prefix="${signo}">${signo}${formatMoney(0, cuenta?.moneda)}</div>
           <button class="btn icon small secondary tx-del" data-edit="${t.id}" aria-label="Editar">${ICON_EDIT}</button>
           <button class="btn icon small danger tx-del" data-del="${t.id}" aria-label="Eliminar">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6"/></svg>
@@ -121,6 +121,8 @@ const TransaccionesView = {
         });
       };
     });
+
+    animateCounters(container);
   },
 
   deleteTx(id) {

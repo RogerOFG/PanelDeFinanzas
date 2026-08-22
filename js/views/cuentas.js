@@ -22,7 +22,7 @@ const CuentasView = {
         <div class="account-mini-icon" style="background:color-mix(in srgb, ${ACCOUNT_TIPO_COLOR[c.tipo]} 15%, transparent);color:${ACCOUNT_TIPO_COLOR[c.tipo]};margin-bottom:10px;">${ICON_ACCOUNT_TIPO[c.tipo] || ICON_ACCOUNT_TIPO.banco}</div>
         <span class="pill ${c.moneda === 'USD' ? 'usd' : 'cop'}">${c.moneda}</span>
         <span class="pill tipo">${TIPO_CUENTA_LABELS[c.tipo] || c.tipo}</span>
-        <div class="balance">${formatMoney(c.saldo, c.moneda)}</div>
+        <div class="balance" data-count="${c.saldo}" data-count-currency="${c.moneda}">${formatMoney(0, c.moneda)}</div>
         <div class="text-dim" style="font-size:14px;font-weight:600;">${escapeHtml(c.nombre)}</div>
         ${c.titular ? `<div class="text-dim" style="font-size:12px;margin-top:4px;">Titular: ${escapeHtml(c.titular)}</div>` : ''}
         ${c.notas ? `<div class="text-dim" style="font-size:12px;margin-top:6px;">${escapeHtml(c.notas)}</div>` : ''}
@@ -55,6 +55,8 @@ const CuentasView = {
         });
       };
     });
+
+    animateCounters(container);
   },
 
   openForm(id) {

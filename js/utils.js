@@ -82,3 +82,30 @@ const ICON_ACCOUNT_TIPO = {
   terceros: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/></svg>'
 };
 const ACCOUNT_TIPO_COLOR = { banco: 'var(--accent)', efectivo: 'var(--warning)', inversion: 'var(--accent-2)', terceros: 'var(--text-dim)' };
+
+// Anima de 0 al valor real cualquier elemento con [data-count] dentro de `root`.
+// Úsalo tras insertar el HTML de una vista: animateCounters(container).
+const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function animateCounters(root, duration = 800) {
+  root.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseFloat(el.dataset.count);
+    if (Number.isNaN(target)) return;
+    const moneda = el.dataset.countCurrency || 'COP';
+    const prefix = el.dataset.countPrefix || '';
+
+    if (PREFERS_REDUCED_MOTION) {
+      el.textContent = prefix + formatMoney(target, moneda);
+      return;
+    }
+
+    const start = performance.now();
+    const step = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = prefix + formatMoney(target * eased, moneda);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}

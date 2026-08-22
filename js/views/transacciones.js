@@ -170,15 +170,13 @@ const TransaccionesView = {
           <label>Cuenta destino</label>
           ${UI.selectHTML('cuentaDestinoId', cuentaOpts, tx?.cuentaDestinoId ?? cuentaOpts[0]?.value, { id: 'tx-cuenta-destino' })}
         </div>
-        <div class="form-row inline">
-          <div>
-            <label>Monto</label>
-            <input type="number" step="0.01" name="monto" required min="0.01" value="${tx?.monto ?? ''}">
-          </div>
-          <div id="categoria-wrap" style="display:${tipoInicial === 'transferencia' ? 'none' : ''};">
-            <label>Categoría</label>
-            ${UI.selectHTML('categoria', categoriasIniciales, tx?.categoria || categoriasIniciales[0], { id: 'tx-categoria' })}
-          </div>
+        <div class="form-row">
+          <label>Monto</label>
+          ${UI.moneyInputHTML('monto', tx?.monto ?? '', { required: true })}
+        </div>
+        <div class="form-row" id="categoria-wrap" style="display:${tipoInicial === 'transferencia' ? 'none' : ''};">
+          <label>Categoría</label>
+          ${UI.selectHTML('categoria', categoriasIniciales, tx?.categoria || categoriasIniciales[0], { id: 'tx-categoria' })}
         </div>
         <div class="form-row">
           <label>Descripción</label>
@@ -196,6 +194,7 @@ const TransaccionesView = {
     `, {
       onMount: (root) => {
         UI.initSelects(root);
+        UI.initMoneyInputs(root);
         const tipoSelect = root.querySelector('#tx-tipo');
         const destinoRow = root.querySelector('#cuenta-destino-row');
         const categoriaWrap = root.querySelector('#categoria-wrap');

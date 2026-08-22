@@ -69,19 +69,17 @@ const MetasView = {
           <label>Nombre</label>
           <input type="text" name="nombre" required value="${escapeHtml(meta?.nombre || '')}" placeholder="Ej: Moto, Viaje, Fondo de emergencia">
         </div>
-        <div class="form-row inline">
-          <div>
-            <label>Monto objetivo</label>
-            <input type="number" step="0.01" name="montoObjetivo" required value="${meta?.montoObjetivo ?? ''}">
-          </div>
-          <div>
-            <label>Moneda</label>
-            ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], meta?.moneda || 'COP')}
-          </div>
+        <div class="form-row">
+          <label>Moneda</label>
+          ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], meta?.moneda || 'COP')}
+        </div>
+        <div class="form-row">
+          <label>Monto objetivo</label>
+          ${UI.moneyInputHTML('montoObjetivo', meta?.montoObjetivo ?? '', { required: true })}
         </div>
         <div class="form-row">
           <label>Monto actual ahorrado</label>
-          <input type="number" step="0.01" name="montoActual" value="${meta?.montoActual ?? 0}">
+          ${UI.moneyInputHTML('montoActual', meta?.montoActual ?? 0)}
         </div>
         <div class="form-row">
           <label>Fecha límite (opcional)</label>
@@ -99,6 +97,7 @@ const MetasView = {
     `, {
       onMount: (root) => {
         UI.initSelects(root);
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#meta-form').onsubmit = (e) => {
           e.preventDefault();
@@ -131,7 +130,7 @@ const MetasView = {
         <p class="text-dim mt-0">${escapeHtml(meta.nombre)}</p>
         <div class="form-row">
           <label>Monto del aporte</label>
-          <input type="number" step="0.01" name="monto" required min="0.01">
+          ${UI.moneyInputHTML('monto', '', { required: true })}
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -140,6 +139,7 @@ const MetasView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#aporte-form').onsubmit = (e) => {
           e.preventDefault();

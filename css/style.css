@@ -347,6 +347,37 @@ tr:last-child td { border-bottom: none; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
 .checkbox-row input { width: auto; min-height: auto; }
 
+/* Campo de monto: símbolo, separadores en vivo y chips de suma rápida */
+.money-input-field { position: relative; }
+.money-input-symbol {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-dim); font-size: 15px; font-weight: 600; pointer-events: none;
+}
+.money-display { padding-left: 26px !important; font-variant-numeric: tabular-nums; width: 100%; }
+.money-chips {
+  display: flex; gap: 6px; margin-top: 8px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.money-chips::-webkit-scrollbar { display: none; }
+.money-chip {
+  flex-shrink: 0;
+  appearance: none;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+.money-chip:hover { background: rgba(126,224,196,0.14); border-color: var(--accent); }
+.money-chip:active { transform: scale(0.95); }
+.money-chip-clear { color: var(--text-dim); margin-left: 2px; }
+.money-chip-clear:hover { background: rgba(224,135,135,0.12); border-color: var(--danger); color: var(--danger); }
+
 /* Custom select (reemplaza <select> nativo) */
 .custom-select { position: relative; }
 .custom-select-trigger {

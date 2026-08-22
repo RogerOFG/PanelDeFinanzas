@@ -139,7 +139,7 @@ const DeudasView = {
         <p class="text-dim mt-0">${escapeHtml(deuda.nombre)}</p>
         <div class="form-row">
           <label>¿Cuánto pagaste este mes?</label>
-          <input type="number" step="0.01" name="monto" required min="0.01" value="${deuda.monto ?? ''}">
+          ${UI.moneyInputHTML('monto', deuda.monto ?? '', { required: true })}
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -148,6 +148,7 @@ const DeudasView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-deuda-form').onsubmit = (e) => {
           e.preventDefault();
@@ -282,7 +283,7 @@ const DeudasView = {
         </div>
         <div class="form-row">
           <label>Cuánto paga cada mes</label>
-          <input type="number" step="0.01" name="montoMensual" required value="${miembro?.montoMensual ?? ''}">
+          ${UI.moneyInputHTML('montoMensual', miembro?.montoMensual ?? '', { required: true })}
         </div>
         <div class="form-row checkbox-row">
           <input type="checkbox" name="activo" id="chk-miembro-activo" ${miembro?.activo !== false ? 'checked' : ''}>
@@ -295,6 +296,7 @@ const DeudasView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => { UI.closeModal(); DeudasView.openMiembros(deudaId); };
         root.querySelector('#miembro-form').onsubmit = (e) => {
           e.preventDefault();
@@ -337,7 +339,7 @@ const DeudasView = {
         <p class="text-dim mt-0">${escapeHtml(deuda.nombre)} — cuota: ${formatMoney(miembro.montoMensual, deuda.moneda)}</p>
         <div class="form-row">
           <label>¿Cuánto pagó?</label>
-          <input type="number" step="0.01" name="monto" required min="0.01" value="${miembro.montoMensual}">
+          ${UI.moneyInputHTML('monto', miembro.montoMensual, { required: true })}
         </div>
         <div class="form-row">
           <label>¿A qué cuenta llegó el pago?</label>
@@ -355,6 +357,7 @@ const DeudasView = {
     `, {
       onMount: (root) => {
         UI.initSelects(root);
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => { UI.closeModal(); DeudasView.openMiembros(miembro.deudaId); };
         root.querySelector('#pago-miembro-form').onsubmit = (e) => {
           e.preventDefault();
@@ -419,19 +422,17 @@ const DeudasView = {
             { value: 'variable', label: 'Monto variable (lo escribo cada vez)' }
           ], deuda?.tipoPago || 'fijo', { id: 'tipo-pago' })}
         </div>
-        <div class="form-row inline">
-          <div>
-            <label id="monto-mensual-label">Monto mensual</label>
-            <input type="number" step="0.01" name="monto" id="monto-mensual" required value="${deuda?.monto ?? ''}">
-          </div>
-          <div>
-            <label>Día de pago (1-28)</label>
-            <input type="number" name="diaPago" min="1" max="28" required value="${deuda?.diaPago ?? 1}">
-          </div>
+        <div class="form-row">
+          <label id="monto-mensual-label">Monto mensual</label>
+          ${UI.moneyInputHTML('monto', deuda?.monto ?? '', { id: 'monto-mensual', required: true })}
+        </div>
+        <div class="form-row">
+          <label>Día de pago (1-28)</label>
+          <input type="number" name="diaPago" min="1" max="28" required value="${deuda?.diaPago ?? 1}">
         </div>
         <div class="form-row">
           <label>Monto total adeudado (opcional — solo si es una deuda con un total a pagar)</label>
-          <input type="number" step="0.01" name="montoTotal" value="${deuda?.montoTotal ?? ''}" placeholder="Ej: tarjeta de crédito, préstamo bancario">
+          ${UI.moneyInputHTML('montoTotal', deuda?.montoTotal ?? '', { placeholder: 'Ej: tarjeta de crédito' })}
         </div>
         <div class="form-row">
           <label>Avisar con cuántos días de anticipación</label>
@@ -453,6 +454,7 @@ const DeudasView = {
     `, {
       onMount: (root) => {
         UI.initSelects(root);
+        UI.initMoneyInputs(root);
 
         const tipoPagoHidden = root.querySelector('#tipo-pago');
         const montoLabel = root.querySelector('#monto-mensual-label');

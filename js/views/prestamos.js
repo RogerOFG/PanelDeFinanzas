@@ -79,19 +79,17 @@ const PrestamosView = {
           <label>Contraparte (nombre)</label>
           <input type="text" name="contraparte" required value="${escapeHtml(prestamo?.contraparte || '')}" placeholder="Ej: Juan, Banco X">
         </div>
-        <div class="form-row inline">
-          <div>
-            <label>Monto total</label>
-            <input type="number" step="0.01" name="monto" required value="${prestamo?.monto ?? ''}">
-          </div>
-          <div>
-            <label>Moneda</label>
-            ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], prestamo?.moneda || 'COP')}
-          </div>
+        <div class="form-row">
+          <label>Moneda</label>
+          ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], prestamo?.moneda || 'COP')}
+        </div>
+        <div class="form-row">
+          <label>Monto total</label>
+          ${UI.moneyInputHTML('monto', prestamo?.monto ?? '', { required: true })}
         </div>
         <div class="form-row">
           <label>Monto ya pagado</label>
-          <input type="number" step="0.01" name="montoPagado" value="${prestamo?.montoPagado ?? 0}">
+          ${UI.moneyInputHTML('montoPagado', prestamo?.montoPagado ?? 0)}
         </div>
         <div class="form-row inline">
           <div>
@@ -115,6 +113,7 @@ const PrestamosView = {
     `, {
       onMount: (root) => {
         UI.initSelects(root);
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#prestamo-form').onsubmit = (e) => {
           e.preventDefault();
@@ -151,7 +150,7 @@ const PrestamosView = {
         <p class="text-dim mt-0">${escapeHtml(prestamo.contraparte)} — pendiente: ${formatMoney(pendiente, prestamo.moneda)}</p>
         <div class="form-row">
           <label>Monto del pago</label>
-          <input type="number" step="0.01" name="monto" required min="0.01" max="${pendiente}">
+          ${UI.moneyInputHTML('monto', '', { required: true })}
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -160,6 +159,7 @@ const PrestamosView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-form').onsubmit = (e) => {
           e.preventDefault();

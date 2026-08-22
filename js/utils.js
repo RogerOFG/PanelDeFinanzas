@@ -53,6 +53,39 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Limpia lo que el usuario escribe en un campo de monto y devuelve tanto el
+// texto ya separado por miles (para mostrar) como el número real (para guardar).
+function parseMoneyTyped(strRaw) {
+  let s = String(strRaw || '').replace(/[^\d,]/g, '');
+  const primeraComa = s.indexOf(',');
+  if (primeraComa !== -1) {
+    s = s.slice(0, primeraComa + 1) + s.slice(primeraComa + 1).replace(/,/g, '');
+  }
+  const [intRaw, decRaw] = s.split(',');
+  const intPart = (intRaw || '').replace(/^0+(?=\d)/, '');
+  const decPart = decRaw !== undefined ? decRaw.slice(0, 2) : undefined;
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const display = decPart !== undefined ? `${grouped},${decPart}` : grouped;
+  const numeric = (intPart || decPart !== undefined) ? parseFloat(`${intPart || '0'}.${decPart ?? '0'}`) : 0;
+  return { display, numeric };
+}
+
+// Formatea un número ya conocido (ej: al abrir un formulario de edición) al
+// mismo estilo "1.234.567,89" que usa parseMoneyTyped mientras se escribe.
+function formatMoneyDisplay(n) {
+  if (n === '' || n === null || n === undefined || isNaN(n)) return '';
+  const num = Number(n);
+  const hasDecimals = Math.round(num * 100) % 100 !== 0;
+  return num.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: hasDecimals ? 2 : 0 });
+}
+
+// Etiqueta corta para los chips de suma rápida (100000 -> "100k", 1000000 -> "1M").
+function chipLabel(n) {
+  if (n >= 1000000) return `${n / 1000000}M`;
+  if (n >= 1000) return `${n / 1000}k`;
+  return String(n);
+}
+
 function accountLabel(cuenta) {
   if (!cuenta) return '—';
   return `${cuenta.nombre} (${cuenta.moneda})`;

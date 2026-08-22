@@ -151,5 +151,61 @@ const UI = {
       if (e.target.closest && e.target.closest('.custom-select-menu')) return;
       UI._closeAllSelects();
     }, true);
+  },
+
+  // Campo de monto: muestra separadores de miles mientras se escribe y agrega
+  // chips para sumar cantidades comunes de un toque. El valor real (numérico,
+  // sin separadores) queda en un <input type="hidden"> con el mismo `name`,
+  // así que FormData/fd.get(...) sigue funcionando igual que con un <input number>.
+  moneyInputHTML(name, value, opts = {}) {
+    const chips = opts.chips || [10000, 50000, 100000, 500000];
+    const display = formatMoneyDisplay(value);
+    return `
+      <div class="money-input">
+        <div class="money-input-field">
+          <span class="money-input-symbol">$</span>
+          <input type="text" inputmode="decimal" class="money-display" placeholder="${opts.placeholder || '0'}" value="${escapeHtml(display)}" ${opts.required ? 'required' : ''}>
+        </div>
+        <input type="hidden" name="${escapeHtml(name)}" ${opts.id ? `id="${escapeHtml(opts.id)}"` : ''} value="${value ?? ''}">
+        <div class="money-chips">
+          ${chips.map(c => `<button type="button" class="money-chip" data-add="${c}">+${chipLabel(c)}</button>`).join('')}
+          <button type="button" class="money-chip money-chip-clear" data-clear title="Vaciar">0</button>
+        </div>
+      </div>`;
+  },
+
+  // Activa el formato en vivo y los chips de todos los .money-input dentro de `root`.
+  initMoneyInputs(root) {
+    root.querySelectorAll('.money-input').forEach(wrap => {
+      const display = wrap.querySelector('.money-display');
+      const hidden = wrap.querySelector('input[type=hidden]');
+
+      display.addEventListener('input', () => {
+        const { display: formatted, numeric } = parseMoneyTyped(display.value);
+        display.value = formatted;
+        hidden.value = numeric || '';
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+
+      wrap.querySelectorAll('[data-add]').forEach(btn => {
+        btn.onclick = () => {
+          const actual = parseFloat(hidden.value) || 0;
+          const nuevo = actual + parseFloat(btn.dataset.add);
+          hidden.value = nuevo;
+          display.value = formatMoneyDisplay(nuevo);
+          hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+      });
+
+      const clearBtn = wrap.querySelector('[data-clear]');
+      if (clearBtn) {
+        clearBtn.onclick = () => {
+          hidden.value = '';
+          display.value = '';
+          display.focus();
+          hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+      }
+    });
   }
 };

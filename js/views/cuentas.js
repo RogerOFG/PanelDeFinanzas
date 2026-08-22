@@ -87,7 +87,7 @@ const CuentasView = {
         </div>
         <div class="form-row">
           <label>Saldo actual</label>
-          <input type="number" step="0.01" name="saldo" value="${cuenta?.saldo ?? 0}">
+          ${UI.moneyInputHTML('saldo', cuenta?.saldo ?? 0)}
         </div>
         <div class="form-row">
           <label>Titular (si no es a tu nombre)</label>
@@ -105,6 +105,7 @@ const CuentasView = {
     `, {
       onMount: (root) => {
         UI.initSelects(root);
+        UI.initMoneyInputs(root);
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#cuenta-form').onsubmit = (e) => {
           e.preventDefault();

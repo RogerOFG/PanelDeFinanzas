@@ -146,6 +146,10 @@ const UI = {
     UI._outsideClickBound = true;
     document.addEventListener('click', () => UI._closeAllSelects());
     window.addEventListener('resize', () => UI._closeAllSelects());
-    document.addEventListener('scroll', () => UI._closeAllSelects(), true);
+    document.addEventListener('scroll', (e) => {
+      // No cerrar si el scroll ocurre dentro del propio menú de opciones (lista larga).
+      if (e.target.closest && e.target.closest('.custom-select-menu')) return;
+      UI._closeAllSelects();
+    }, true);
   }
 };

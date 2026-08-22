@@ -5,10 +5,26 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Conectar por SSH y desplegar
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Verificar sintaxis de todos los archivos .js
+        run: |
+          set -e
+          find . -name "*.js" \
+            -not -path "./node_modules/*" \
+            -not -path "*/node_modules/*" \
+            -print0 | xargs -0 -n1 node --check
+          echo "Sintaxis OK en todos los archivos .js"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conectar por SSH y desplegar (con rollback automático si falla)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -17,10 +33,40 @@ jobs:
           script: |
             set -e
             cd ~/finbot
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             cd backend
-            docker build -t finbot-backend:latest .
+            docker build -t finbot-backend:new .
+
+            # Levanta la nueva versión en un puerto aparte para probarla
+            # sin tocar la que está sirviendo producción todavía.
+            docker rm -f finbot-backend-candidato 2>/dev/null || true
+            docker run -d --name finbot-backend-candidato \
+              --env-file ~/finbot/backend/.env \
+              -p 127.0.0.1:4001:4000 \
+              finbot-backend:new
+
+            echo "Esperando a que la nueva versión responda..."
+            OK=0
+            for i in $(seq 1 10); do
+              if curl -sf http://127.0.0.1:4001/health > /dev/null; then
+                OK=1
+                break
+              fi
+              sleep 1
+            done
+
+            if [ "$OK" != "1" ]; then
+              echo "La nueva versión no respondió sana — se cancela el despliegue, producción queda intacta."
+              docker logs finbot-backend-candidato --tail 50 || true
+              docker rm -f finbot-backend-candidato || true
+              exit 1
+            fi
+
+            echo "Nueva versión saludable — reemplazando la versión en producción."
+            docker rm -f finbot-backend-candidato
+            docker tag finbot-backend:new finbot-backend:latest
             docker rm -f finbot-backend || true
             docker run -d --name finbot-backend --restart always \
               -p 127.0.0.1:4000:4000 \
@@ -29,3 +75,4 @@ jobs:
 
             sleep 2
             curl -sf http://127.0.0.1:4000/health
+            echo "Despliegue completado."

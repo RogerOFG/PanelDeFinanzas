@@ -277,6 +277,7 @@ tr:last-child td { border-bottom: none; }
 .tx-body { flex: 1; min-width: 0; }
 .tx-title { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tx-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-categoria { color: var(--accent); font-weight: 600; }
 .tx-amount { font-family: var(--font-display); font-size: 14px; font-weight: 700; text-align: right; flex-shrink: 0; }
 .tx-amount.ingreso { color: var(--accent); }
 .tx-amount.gasto { color: var(--danger); }

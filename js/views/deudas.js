@@ -98,7 +98,7 @@ const DeudasView = {
     if (candidate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
       candidate = new Date(year, month + 1, diaPago);
     }
-    return candidate.toISOString().slice(0, 10);
+    return dateToISOLocal(candidate);
   },
 
   // Fecha en que empezó el ciclo de cobro actual (el último día de pago que ya pasó o es hoy).
@@ -107,7 +107,7 @@ const DeudasView = {
     let year = now.getFullYear(), month = now.getMonth();
     let due = new Date(year, month, diaPago);
     if (due > now) due = new Date(year, month - 1, diaPago);
-    return due.toISOString().slice(0, 10);
+    return dateToISOLocal(due);
   },
 
   pagadoEsteCiclo(deuda) {

@@ -10,6 +10,23 @@ function mesLabel(fechaISO) {
   return capitalizar(d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }));
 }
 
+// Lunes de la semana actual, en fecha local.
+function inicioSemanaISO() {
+  const hoy = new Date();
+  const dia = hoy.getDay(); // 0 = domingo
+  const diff = dia === 0 ? 6 : dia - 1;
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() - diff);
+  return dateToISOLocal(lunes);
+}
+
+function grupoLabel(fechaISO, hoy, ayer, inicioSemana) {
+  if (fechaISO === hoy) return 'Hoy';
+  if (fechaISO === ayer) return 'Ayer';
+  if (fechaISO >= inicioSemana) return 'Esta semana';
+  return mesLabel(fechaISO);
+}
+
 const TransaccionesView = {
   filtro: { cuentaId: '', tipo: '', categoria: '' },
 
@@ -36,19 +53,26 @@ const TransaccionesView = {
       transferencia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4M7 8l-4 4 4 4"/><path d="M3 12h18"/></svg>'
     };
 
+    const hoy = todayISO();
+    const ayerDate = new Date();
+    ayerDate.setDate(ayerDate.getDate() - 1);
+    const ayer = dateToISOLocal(ayerDate);
+    const inicioSemana = inicioSemanaISO();
+
     let rows = '';
-    let mesActual = null;
+    let grupoActual = null;
     transacciones.forEach(t => {
-      const mes = t.fecha.slice(0, 7);
-      if (mes !== mesActual) {
-        mesActual = mes;
-        rows += `<div class="tx-month-divider">${mesLabel(t.fecha)}</div>`;
+      const grupo = grupoLabel(t.fecha, hoy, ayer, inicioSemana);
+      if (grupo !== grupoActual) {
+        grupoActual = grupo;
+        rows += `<div class="tx-month-divider">${grupo}</div>`;
       }
       const cuenta = Storage.find('cuentas', t.cuentaId);
       const destino = t.cuentaDestinoId ? Storage.find('cuentas', t.cuentaDestinoId) : null;
       const signo = t.tipo === 'gasto' ? '-' : t.tipo === 'ingreso' ? '+' : '';
       const titulo = t.descripcion || (t.categoria ? capitalizar(t.categoria) : TIPO_MOVIMIENTO_LABELS[t.tipo]);
-      const sub = `${escapeHtml(cuenta ? cuenta.nombre : '—')}${destino ? ` → ${escapeHtml(destino.nombre)}` : ''} · ${formatDate(t.fecha)}`;
+      const categoriaTag = t.categoria ? ` · <span class="tx-categoria">${escapeHtml(capitalizar(t.categoria))}</span>` : '';
+      const sub = `${escapeHtml(cuenta ? cuenta.nombre : '—')}${destino ? ` → ${escapeHtml(destino.nombre)}` : ''} · ${formatDate(t.fecha)}${categoriaTag}`;
       rows += `
         <div class="tx-item">
           <div class="tx-icon ${t.tipo}">${icons[t.tipo]}</div>

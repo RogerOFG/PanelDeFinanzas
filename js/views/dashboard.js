@@ -10,7 +10,7 @@ const DashboardView = {
     const totalBase = cuentas.reduce((s, c) => s + toBaseCurrency(c.saldo, c.moneda), 0);
 
     const now = new Date();
-    const mesActual = now.toISOString().slice(0, 7);
+    const mesActual = dateToISOLocal(now).slice(0, 7);
     const txMes = transacciones.filter(t => t.fecha.startsWith(mesActual));
     const ingresosMes = txMes.filter(t => t.tipo === 'ingreso').reduce((s, t) => s + toBaseCurrency(t.monto, Storage.find('cuentas', t.cuentaId)?.moneda), 0);
     const gastosMes = txMes.filter(t => t.tipo === 'gasto').reduce((s, t) => s + toBaseCurrency(t.monto, Storage.find('cuentas', t.cuentaId)?.moneda), 0);

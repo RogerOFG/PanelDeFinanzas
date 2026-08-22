@@ -16,8 +16,18 @@ function toBaseCurrency(monto, moneda) {
   return Number(monto || 0);
 }
 
+// Convierte un objeto Date a 'YYYY-MM-DD' usando la fecha LOCAL del navegador
+// (no UTC) — toISOString() se adelanta un día para husos negativos como
+// Colombia (UTC-5) cuando ya es de noche.
+function dateToISOLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return dateToISOLocal(new Date());
 }
 
 function formatDate(iso) {

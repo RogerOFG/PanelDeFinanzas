@@ -228,7 +228,7 @@ const DashboardView = {
     });
     container.querySelector('#qa-send').onclick = () => TransaccionesView.openForm(null, 'gasto');
     container.querySelector('#qa-add').onclick = () => TransaccionesView.openForm(null, 'ingreso');
-    container.querySelector('#qa-history').onclick = () => App.navigate('transacciones');
+    container.querySelector('#qa-history').onclick = () => App.navigate('historial');
 
     const irAVista = (view, detalleId) => {
       App.currentView = view;

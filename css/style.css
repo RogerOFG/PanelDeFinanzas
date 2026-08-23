@@ -444,7 +444,7 @@ tr:last-child td { border-bottom: none; }
 }
 .custom-select-option:hover { background: rgba(255,255,255,0.06); }
 .custom-select-option.selected { background: rgba(126,224,196,0.14); color: var(--accent); font-weight: 700; }
-.filters .custom-select { min-width: 166px; }
+.filters .custom-select { min-width: 154px; }
 .filters .custom-select-trigger { min-height: 38px; padding: 7px 10px; font-size: 13px; }
 
 .more-menu { display: flex; flex-direction: column; gap: 4px; }

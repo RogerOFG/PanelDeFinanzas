@@ -2,7 +2,7 @@ const CATEGORIAS_GASTO = ['comida', 'transporte', 'renta', 'servicios', 'entrete
 const CATEGORIAS_INGRESO = ['salario', 'freelance', 'inversiones', 'regalos', 'ventas', 'prestamo_recibido', 'devolucion_prestamo', 'otros'];
 
 function capitalizar(str) {
-  return str ? str[0].toUpperCase() + str.slice(1) : str;
+  return formatCategoria(str);
 }
 
 function mesLabel(fechaISO) {
@@ -176,7 +176,7 @@ const TransaccionesView = {
     const cuentas = Storage.get('cuentas');
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
     const tipoInicial = tx?.tipo || tipoDefault || 'gasto';
-    const categoriasIniciales = tipoInicial === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
+    const categoriasIniciales = (tipoInicial === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO).map(c => ({ value: c, label: formatCategoria(c) }));
 
     UI.openModal(tx ? 'Editar transacción' : 'Nueva transacción', `
       <form id="tx-form">
@@ -202,7 +202,7 @@ const TransaccionesView = {
         </div>
         <div class="form-row" id="categoria-wrap" style="display:${tipoInicial === 'transferencia' ? 'none' : ''};">
           <label>Categoría</label>
-          ${UI.selectHTML('categoria', categoriasIniciales, tx?.categoria || categoriasIniciales[0], { id: 'tx-categoria' })}
+          ${UI.selectHTML('categoria', categoriasIniciales, tx?.categoria || categoriasIniciales[0]?.value, { id: 'tx-categoria' })}
         </div>
         <div class="form-row">
           <label>Descripción</label>
@@ -230,8 +230,9 @@ const TransaccionesView = {
           const tipo = tipoSelect.value;
           if (tipo === 'transferencia') { categoriaWrap.style.display = 'none'; return; }
           categoriaWrap.style.display = '';
-          const opciones = tipo === 'gasto' ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
-          UI.setSelectOptions(categoriaSelectWrap, opciones, opciones[0]);
+          const lista = tipo === 'gasto' ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
+          const opciones = lista.map(c => ({ value: c, label: formatCategoria(c) }));
+          UI.setSelectOptions(categoriaSelectWrap, opciones, opciones[0]?.value);
         }
         function updateDestino() {
           destinoRow.style.display = tipoSelect.value === 'transferencia' ? '' : 'none';

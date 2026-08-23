@@ -1,5 +1,7 @@
 const HistorialView = {
   filtro: 'todos',
+  detalleYm: null,
+  modo: 'monto', // 'monto' | 'porcentaje' — cómo se muestran los datos de categorías
 
   renderSkeleton() {
     const container = document.getElementById('view-historial');
@@ -18,8 +20,25 @@ const HistorialView = {
     return texto[0].toUpperCase() + texto.slice(1);
   },
 
-  // Agrupa todas las transacciones por mes (YYYY-MM), calculando totales y
-  // el ranking de categorías con más monto dentro de cada mes.
+  nombreMesCorto(ym) {
+    const [year, month] = ym.split('-').map(Number);
+    return new Date(year, month - 1, 1).toLocaleDateString('es-CO', { month: 'long' });
+  },
+
+  mesAnterior(ym) {
+    const [year, month] = ym.split('-').map(Number);
+    const d = new Date(year, month - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  },
+
+  diasDelMes(ym) {
+    const [year, month] = ym.split('-').map(Number);
+    return new Date(year, month, 0).getDate();
+  },
+
+  // Agrupa todas las transacciones por mes (YYYY-MM). Cada categoría guarda por
+  // separado cuánto fue ingreso y cuánto gasto, para poder mostrar la barra
+  // ganancia/pérdida de cada una en el detalle.
   agruparPorMes() {
     const transacciones = Storage.get('transacciones');
     const meses = {};
@@ -35,25 +54,30 @@ const HistorialView = {
       else if (t.tipo === 'gasto') m.gastos += monto;
 
       if (t.categoria && t.tipo !== 'transferencia') {
-        if (!m.categorias[t.categoria]) m.categorias[t.categoria] = { categoria: t.categoria, tipo: t.tipo, cantidad: 0, total: 0 };
-        m.categorias[t.categoria].cantidad++;
-        m.categorias[t.categoria].total += monto;
+        if (!m.categorias[t.categoria]) m.categorias[t.categoria] = { categoria: t.categoria, totalIngreso: 0, totalGasto: 0, cantidad: 0 };
+        const c = m.categorias[t.categoria];
+        c.cantidad++;
+        if (t.tipo === 'ingreso') c.totalIngreso += monto;
+        else if (t.tipo === 'gasto') c.totalGasto += monto;
       }
     });
 
     return Object.values(meses).sort((a, b) => b.ym.localeCompare(a.ym));
   },
 
-  topCategorias(m) {
-    const cats = Object.values(m.categorias);
-    const total = cats.reduce((s, c) => s + c.total, 0);
-    return cats
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 3)
-      .map(c => ({ ...c, pct: total ? Math.round((c.total / total) * 100) : 0 }));
+  render() {
+    if (this.detalleYm) {
+      const todos = this.agruparPorMes();
+      if (todos.some(m => m.ym === this.detalleYm)) {
+        this.renderDetalle(this.detalleYm, todos);
+        return;
+      }
+      this.detalleYm = null;
+    }
+    this.renderLista();
   },
 
-  render() {
+  renderLista() {
     const container = document.getElementById('view-historial');
     const todos = this.agruparPorMes();
     const mesActual = todayISO().slice(0, 7);
@@ -75,13 +99,19 @@ const HistorialView = {
 
     if (meses.length === 0) {
       container.innerHTML = `${filtrosHtml}<div class="empty-state card">Sin meses con este filtro.</div>`;
-      this.wireFiltros(container);
+      container.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => { this.filtro = b.dataset.filtro; this.render(); });
       return;
     }
 
+    const topCategorias = (m) => {
+      const cats = Object.values(m.categorias).map(c => ({ ...c, total: c.totalIngreso + c.totalGasto }));
+      const total = cats.reduce((s, c) => s + c.total, 0);
+      return cats.sort((a, b) => b.total - a.total).slice(0, 3).map(c => ({ ...c, pct: total ? Math.round((c.total / total) * 100) : 0 }));
+    };
+
     const fila = (m) => {
       const balance = m.ingresos - m.gastos;
-      const top = this.topCategorias(m);
+      const top = topCategorias(m);
       return `
         <div class="debt-item month-card ${m.ym === mesActual ? 'current' : ''}">
           <div class="debt-item-top" data-abrir="${m.ym}">
@@ -119,51 +149,126 @@ const HistorialView = {
 
     container.innerHTML = `${filtrosHtml}<div class="debt-list">${meses.map(fila).join('')}</div>`;
 
-    container.querySelectorAll('[data-abrir]').forEach(el => {
-      el.onclick = () => this.abrirDetalle(el.dataset.abrir, meses);
-    });
-    this.wireFiltros(container);
-  },
-
-  wireFiltros(container) {
     container.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => { this.filtro = b.dataset.filtro; this.render(); });
+    container.querySelectorAll('[data-abrir]').forEach(el => {
+      el.onclick = () => { this.detalleYm = el.dataset.abrir; this.render(); };
+    });
   },
 
-  abrirDetalle(ym, meses) {
-    const m = meses.find(x => x.ym === ym);
+  renderDetalle(ym, todos) {
+    const container = document.getElementById('view-historial');
+    const m = todos.find(x => x.ym === ym);
+    const anterior = todos.find(x => x.ym === this.mesAnterior(ym));
     const balance = m.ingresos - m.gastos;
-    const categoriasOrdenadas = Object.values(m.categorias).sort((a, b) => b.total - a.total);
+    const dias = this.diasDelMes(ym);
+    const promedioDiario = balance / dias;
 
-    const filaCategoria = (c) => `
-      <div class="detail-row">
-        <div class="detail-row-label">${ICON_CATEGORIA[c.categoria] || ICON_DOTS} ${capitalizar(c.categoria)}</div>
-        <div style="text-align:right;">
-          <div class="detail-row-value">${formatMoney(c.total, 'COP')}</div>
-          <span class="pill ${c.tipo === 'ingreso' ? 'pos' : 'tipo'}" style="margin-top:2px;">${c.cantidad} registro(s)</span>
-        </div>
-      </div>`;
+    const variacion = (actual, previo) => {
+      if (!anterior || !previo) return null;
+      if (previo === 0) return actual > 0 ? 100 : 0;
+      return Math.round(((actual - previo) / previo) * 100);
+    };
+    const varIngresos = variacion(m.ingresos, anterior?.ingresos);
+    const varGastos = variacion(m.gastos, anterior?.gastos);
+    const mesAnteriorCorto = anterior ? this.nombreMesCorto(anterior.ym) : null;
 
-    UI.openModal(this.nombreMes(ym), `
-      <div class="mini-stats" style="margin-bottom:18px;">
-        <div class="mini-stat">
-          <div class="mini-stat-label">Ingresos</div>
-          <div class="mini-stat-value pos">${formatMoney(m.ingresos, 'COP')}</div>
+    // Base para los porcentajes de la sección de categorías: el total categorizado del mes.
+    const categorias = Object.values(m.categorias).map(c => ({ ...c, total: c.totalIngreso + c.totalGasto }));
+    const totalCategorizado = categorias.reduce((s, c) => s + c.total, 0);
+    const categoriasOrdenadas = categorias.sort((a, b) => b.total - a.total);
+
+    const filaCategoria = (c) => {
+      const pctIngreso = totalCategorizado ? (c.totalIngreso / totalCategorizado) * 100 : 0;
+      const pctGasto = totalCategorizado ? (c.totalGasto / totalCategorizado) * 100 : 0;
+      const shareIngreso = c.total ? (c.totalIngreso / c.total) * 100 : 0;
+      const shareGasto = c.total ? (c.totalGasto / c.total) * 100 : 0;
+      const pctTotal = totalCategorizado ? (c.total / totalCategorizado) * 100 : 0;
+      const color = CATEGORIA_COLOR[c.categoria] || 'var(--accent-2)';
+
+      const etiqueta = (valor, monto) => this.modo === 'monto' ? formatMoney(monto, 'COP') : `${valor.toFixed(1)}%`;
+      const rightPrimary = this.modo === 'monto' ? formatMoney(c.total, 'COP') : `${pctTotal.toFixed(1)}%`;
+
+      return `
+        <div class="cat-row">
+          <div class="debt-icon" style="width:38px;height:38px;border-radius:12px;background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${ICON_CATEGORIA[c.categoria] || ICON_DOTS}</div>
+          <div class="cat-row-body">
+            <div class="cat-row-name">${capitalizar(c.categoria)}</div>
+            <div class="cat-bar" style="width:${Math.max(pctTotal, 1)}%;">
+              ${shareIngreso > 0 ? `<div class="cat-bar-seg green" style="width:${shareIngreso}%;"></div>` : ''}
+              ${shareGasto > 0 ? `<div class="cat-bar-seg red" style="width:${shareGasto}%;"></div>` : ''}
+            </div>
+            <div class="cat-bar-labels" style="width:${Math.max(pctTotal, 1)}%;">
+              ${pctIngreso > 0 ? `<span class="lbl green" style="flex-basis:${shareIngreso}%;">${etiqueta(pctIngreso, c.totalIngreso)}</span>` : ''}
+              ${pctGasto > 0 ? `<span class="lbl red" style="flex-basis:${shareGasto}%;">${etiqueta(pctGasto, c.totalGasto)}</span>` : ''}
+            </div>
+          </div>
+          <div class="cat-row-right">
+            <div class="cat-row-amount">${rightPrimary}</div>
+            <div class="cat-row-count">${c.cantidad} registro(s)</div>
+          </div>
+        </div>`;
+    };
+
+    container.innerHTML = `
+      <div class="detail-topbar" style="margin-bottom:14px;">
+        <button class="icon-btn" id="hist-back" aria-label="Volver">${ICON_BACK}</button>
+        <div style="text-align:center;flex:1;">
+          <div class="detail-topbar-title">${this.nombreMes(ym)}</div>
+          <div class="debt-item-sub" style="justify-content:center;">${ICON_CALENDAR}${m.cantidadMovimientos} movimiento(s)</div>
         </div>
-        <div class="mini-stat">
-          <div class="mini-stat-label">Gastos</div>
-          <div class="mini-stat-value neg">${formatMoney(m.gastos, 'COP')}</div>
+        <span style="width:40px;"></span>
+      </div>
+
+      <div class="month-stats-grid">
+        <div class="month-stat-card ingresos">
+          <div class="month-stat-label">Ingresos</div>
+          <div class="month-stat-value">${formatMoney(m.ingresos, 'COP')}</div>
+          ${varIngresos !== null ? `<span class="month-stat-compare ${varIngresos >= 0 ? 'pos' : 'neg'}">${varIngresos >= 0 ? '↑' : '↓'} ${Math.abs(varIngresos)}% vs ${mesAnteriorCorto}</span>` : ''}
+          <div class="month-stat-badge">${ICON_ARROW_UP_RIGHT}</div>
+        </div>
+        <div class="month-stat-card gastos">
+          <div class="month-stat-label">Gastos</div>
+          <div class="month-stat-value">${formatMoney(m.gastos, 'COP')}</div>
+          ${varGastos !== null ? `<span class="month-stat-compare ${varGastos <= 0 ? 'pos' : 'neg'}">${varGastos >= 0 ? '↑' : '↓'} ${Math.abs(varGastos)}% vs ${mesAnteriorCorto}</span>` : ''}
+          <div class="month-stat-badge">${ICON_ARROW_DOWN}</div>
         </div>
       </div>
-      <p class="text-dim mt-0">Balance del mes: <strong style="color:${balance >= 0 ? 'var(--accent)' : 'var(--danger)'};">${balance >= 0 ? '+' : ''}${formatMoney(balance, 'COP')}</strong> · ${m.cantidadMovimientos} movimiento(s)</p>
-      <div class="section-header"><span class="section-title">Categorías con más monto</span></div>
-      ${categoriasOrdenadas.length ? `<div class="card">${categoriasOrdenadas.map(filaCategoria).join('')}</div>` : '<div class="empty-state">Sin categorías registradas este mes.</div>'}
-      <div class="modal-actions" style="margin-top:18px;">
-        <button type="button" class="btn secondary" id="cerrar-btn">Cerrar</button>
+
+      <div class="card month-balance-row">
+        <div class="month-balance-item">
+          <div class="debt-icon" style="width:36px;height:36px;border-radius:11px;background:color-mix(in srgb, var(--accent) 16%, transparent);color:var(--accent);">${ICON_WALLET}</div>
+          <div>
+            <div class="mini-stat-label" style="margin-bottom:2px;">Balance del mes</div>
+            <div class="mini-stat-value sm ${balance >= 0 ? 'pos' : 'neg'}">${balance >= 0 ? '+' : '-'}${formatMoney(Math.abs(balance), 'COP')}</div>
+          </div>
+        </div>
+        <div class="month-balance-divider"></div>
+        <div class="month-balance-item">
+          <div class="debt-icon" style="width:36px;height:36px;border-radius:11px;background:color-mix(in srgb, var(--accent-2) 16%, transparent);color:var(--accent-2);">${ICON_TREND_UP}</div>
+          <div>
+            <div class="mini-stat-label" style="margin-bottom:2px;">Promedio diario</div>
+            <div class="mini-stat-value sm ${promedioDiario >= 0 ? 'pos' : 'neg'}">${promedioDiario >= 0 ? '+' : '-'}${formatMoney(Math.abs(promedioDiario), 'COP')}</div>
+          </div>
+        </div>
       </div>
-    `, {
-      onMount: (root) => {
-        root.querySelector('#cerrar-btn').onclick = () => UI.closeModal();
-      }
-    });
+
+      <div class="section-header" style="margin-top:22px;">
+        <span class="section-title">Categorías del mes</span>
+        <div class="cat-legend">
+          <span class="legend-dot" style="background:var(--accent);"></span>Ingresos
+          <span class="legend-dot" style="background:var(--danger);"></span>Gastos
+        </div>
+      </div>
+
+      <div class="seg-toggle">
+        <button class="seg-btn ${this.modo === 'monto' ? 'active' : ''}" data-modo="monto">Monto</button>
+        <button class="seg-btn ${this.modo === 'porcentaje' ? 'active' : ''}" data-modo="porcentaje">Porcentaje</button>
+      </div>
+
+      ${categoriasOrdenadas.length ? `<div class="card cat-list">${categoriasOrdenadas.map(filaCategoria).join('')}</div>` : '<div class="empty-state card">Sin categorías registradas este mes.</div>'}
+    `;
+
+    container.querySelector('#hist-back').onclick = () => { this.detalleYm = null; this.render(); };
+    container.querySelectorAll('[data-modo]').forEach(b => b.onclick = () => { this.modo = b.dataset.modo; this.render(); });
   }
 };

@@ -217,6 +217,23 @@ const ICON_CATEGORIA = {
   otros: ICON_DOTS
 };
 
+// Color por categoría (reutiliza los tokens del sistema, no colores nuevos).
+const CATEGORIA_COLOR = {
+  comida: 'var(--warning)', transporte: 'var(--accent-2)', renta: 'var(--danger)',
+  servicios: 'var(--warning)', entretenimiento: 'var(--accent-2)', salud: 'var(--danger)',
+  educacion: 'var(--accent-2)', ropa: 'var(--accent-3)', tecnologia: 'var(--accent-2)',
+  hogar: 'var(--danger)', juegos: 'var(--accent-2)', regalo: 'var(--accent-2)',
+  prestamo_otorgado: 'var(--accent)', prestamo_recibido: 'var(--accent)', devolucion_prestamo: 'var(--accent)',
+  salario: 'var(--accent)', freelance: 'var(--accent-2)', inversiones: 'var(--accent)',
+  regalos: 'var(--accent-2)', ventas: 'var(--warning)', otros: 'var(--danger)'
+};
+
+const ICON_ARROW_UP_RIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M8 7h9v9"/></svg>';
+const ICON_ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>';
+const ICON_TREND_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>';
+const ICON_WALLET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>';
+const ICON_DOTS_MENU = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cy="12" cx="19" r="1.8"/></svg>';
+
 // Anima de 0 al valor real cualquier elemento con [data-count] dentro de `root`.
 // Úsalo tras insertar el HTML de una vista: animateCounters(container).
 const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

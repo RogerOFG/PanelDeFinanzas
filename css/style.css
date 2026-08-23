@@ -669,6 +669,14 @@ tr:last-child td { border-bottom: none; }
   flex-shrink: 0; width: 150px; background: var(--bg-panel); border: 1px solid var(--border);
   border-radius: 14px; padding: 14px;
 }
+
+.account-mini-icon-container{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .account-mini-icon {
   width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center;
   justify-content: center; margin-bottom: 12px;

@@ -42,11 +42,15 @@ const CuentasView = {
           <button class="btn icon small secondary" data-edit="${c.id}" title="Editar">${ICON_EDIT}</button>
           <button class="btn icon small danger" data-del="${c.id}" title="Eliminar">${ICON_TRASH}</button>
         </div>
-        <div class="account-mini-icon" style="background:color-mix(in srgb, ${ACCOUNT_TIPO_COLOR[c.tipo]} 15%, transparent);color:${ACCOUNT_TIPO_COLOR[c.tipo]};margin-bottom:10px;">${ICON_ACCOUNT_TIPO[c.tipo] || ICON_ACCOUNT_TIPO.banco}</div>
-        <span class="pill ${c.moneda === 'USD' ? 'usd' : 'cop'}">${c.moneda}</span>
-        <span class="pill tipo">${TIPO_CUENTA_LABELS[c.tipo] || c.tipo}</span>
+        <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 14px;">
+          <span class="pill ${c.moneda === 'USD' ? 'usd' : 'cop'}">${c.moneda}</span>
+          <span class="pill tipo">${TIPO_CUENTA_LABELS[c.tipo] || c.tipo}</span>
+        </div>
+        <div class="account-mini-icon-container">
+          <div class="account-mini-icon" style="background:color-mix(in srgb, ${ACCOUNT_TIPO_COLOR[c.tipo]} 15%, transparent);color:${ACCOUNT_TIPO_COLOR[c.tipo]};margin-bottom:0px;">${ICON_ACCOUNT_TIPO[c.tipo] || ICON_ACCOUNT_TIPO.banco}</div>
+          <div class="text-dim" style="font-size:16px;font-weight:600;">${escapeHtml(c.nombre)}</div>
+        </div>
         <div class="balance" data-count="${c.saldo}" data-count-currency="${c.moneda}">${formatMoney(0, c.moneda)}</div>
-        <div class="text-dim" style="font-size:14px;font-weight:600;">${escapeHtml(c.nombre)}</div>
         ${c.titular ? `<div class="text-dim" style="font-size:12px;margin-top:4px;">Titular: ${escapeHtml(c.titular)}</div>` : ''}
         ${c.notas ? `<div class="text-dim" style="font-size:12px;margin-top:6px;">${escapeHtml(c.notas)}</div>` : ''}
       </div>

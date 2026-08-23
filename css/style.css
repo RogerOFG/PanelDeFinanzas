@@ -550,6 +550,12 @@ tr:last-child td { border-bottom: none; }
 .hero-trend svg { width: 12px; height: 12px; }
 .hero-trend.pos { color: var(--accent); }
 .hero-trend.neg { color: var(--danger); }
+.hero-icon-badge {
+  position: absolute; top: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(126,224,196,0.12); border: 1px solid rgba(126,224,196,0.3);
+  display: flex; align-items: center; justify-content: center; color: var(--accent);
+}
+.hero-icon-badge svg { width: 26px; height: 26px; }
 .quick-actions {
   position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px;
 }

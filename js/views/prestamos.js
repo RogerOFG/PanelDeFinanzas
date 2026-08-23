@@ -54,7 +54,7 @@ const PrestamosView = {
           <div class="stat-sub">Pagado: ${formatMoney(p.montoPagado, p.moneda)} / ${formatMoney(p.monto, p.moneda)}</div>
           <div class="stat-sub">Pendiente: <strong>${formatMoney(pendiente, p.moneda)}</strong></div>
           ${p.fechaLimite ? `<div class="stat-sub">Vence: ${formatDate(p.fechaLimite)}</div>` : ''}
-          ${p.notas ? `<div class="stat-sub">${escapeHtml(p.notas)}</div>` : ''}
+          ${p.notas ? `<div class="stat-sub stat-sub--desc">${escapeHtml(p.notas)}</div>` : ''}
           ${p.completado ? `<div class="pill pos" style="margin-top:8px;">${ICON_CHECK} Pagado por completo</div>` : ''}
         </div>`;
     };

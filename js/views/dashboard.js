@@ -50,7 +50,7 @@ const DashboardView = {
       <div class="accounts-scroll">${skeletonAccount}${skeletonAccount}${skeletonAccount}</div>
 
       <div class="skeleton skeleton-line" style="width:160px;margin-bottom:12px;"></div>
-      <div class="tx-list" style="margin-bottom:24px;">${skeletonTx}${skeletonTx}${skeletonTx}</div>
+      <div class="tx-list" style="margin-bottom:24px;">${skeletonTx}${skeletonTx}${skeletonTx}${skeletonTx}</div>
 
       <div class="skeleton skeleton-line" style="width:130px;margin-bottom:12px;"></div>
       <div class="tx-list" style="margin-bottom:18px;">${skeletonTx}${skeletonTx}</div>
@@ -97,7 +97,7 @@ const DashboardView = {
       .sort((a, b) => a.prox.localeCompare(b.prox))
       .slice(0, 4);
 
-    const recientes = transacciones.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5);
+    const recientes = transacciones.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4);
 
     const icons = {
       ingreso: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',

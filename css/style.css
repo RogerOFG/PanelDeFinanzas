@@ -59,7 +59,7 @@ body {
 .topbar h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(15px, 4.8vw, 20px);
+  font-size: clamp(14px, 4.2vw, 17px);
   font-weight: 700;
   letter-spacing: -0.01em;
   min-width: 0;

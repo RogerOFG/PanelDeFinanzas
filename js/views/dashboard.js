@@ -58,7 +58,6 @@ const DashboardView = {
     const container = document.getElementById('view-dashboard');
     const cuentas = Storage.get('cuentas');
     const transacciones = Storage.get('transacciones');
-    const metas = Storage.get('metas').filter(m => !m.completada);
     const prestamos = Storage.get('prestamos').filter(p => !p.completado);
     const deudas = Storage.get('deudas').filter(d => d.activa);
 
@@ -111,25 +110,24 @@ const DashboardView = {
         </div>`;
     }).join('') || '<div class="empty-state">Sin movimientos aún.</div>';
 
-    const metasHtml = metas.slice(0, 2).map(m => {
-      const pct = m.montoObjetivo > 0 ? Math.min(100, Math.round((m.montoActual / m.montoObjetivo) * 100)) : 0;
-      return `
-        <div class="card" style="margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:7px;">
-            <span style="font-weight:600;">${escapeHtml(m.nombre)}</span>
-            <span class="text-dim">${pct}%</span>
-          </div>
-          <div class="progress-bar"><div style="width:${pct}%;"></div></div>
-          <div class="stat-sub">${formatMoney(m.montoActual, m.moneda)} de ${formatMoney(m.montoObjetivo, m.moneda)}</div>
-        </div>`;
-    }).join('') || '<div class="empty-state card">Sin metas activas.</div>';
-
     const pagosHtml = proximosPagos.length ? proximosPagos.map(d => {
       const dias = daysUntil(d.prox);
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:13px;font-weight:600;">${escapeHtml(d.nombre)}</span>
-        <span class="text-dim" style="font-size:12px;">${formatDate(d.prox)} · ${formatMoney(d.monto, d.moneda)}</span>
-      </div>`;
+      const { icon, color } = (typeof DeudasView !== 'undefined' && DeudasView.iconoDeuda) ? DeudasView.iconoDeuda(d) : { icon: icons.transferencia, color: 'var(--accent)' };
+      const vencido = dias !== null && dias < 0;
+      const urgente = dias !== null && dias >= 0 && dias <= 3;
+      const diasTexto = vencido ? 'Vencido' : dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `En ${dias} días`;
+      return `
+        <div class="tx-item">
+          <div class="tx-icon" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${icon}</div>
+          <div class="tx-body">
+            <div class="tx-title">${escapeHtml(d.nombre)}</div>
+            <div class="tx-sub">${formatDate(d.prox)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div class="tx-amount">${formatMoney(d.monto, d.moneda)}</div>
+            <span class="pill ${vencido ? 'neg' : urgente ? 'warn' : 'tipo'}" style="margin-top:4px;">${diasTexto}</span>
+          </div>
+        </div>`;
     }).join('') : '<div class="empty-state">Sin pagos programados.</div>';
 
     const nombre = (Auth.currentUser?.name || '').split(' ')[0] || null;
@@ -188,16 +186,10 @@ const DashboardView = {
       <div class="tx-list" style="margin-bottom:24px;">${txHtml}</div>
 
       <div class="section-header">
-        <span class="section-title">Metas de ahorro</span>
-        <button class="link-btn" data-nav="metas">Ver todas</button>
-      </div>
-      ${metasHtml}
-
-      <div class="section-header" style="margin-top:8px;">
         <span class="section-title">Próximos pagos</span>
         <button class="link-btn" data-nav="deudas">Ver todas</button>
       </div>
-      <div class="card" style="margin-bottom:18px;">${pagosHtml}</div>
+      <div class="tx-list" style="margin-bottom:24px;">${pagosHtml}</div>
 
       <div class="mini-stats" style="margin-bottom:0;">
         <div class="mini-stat">

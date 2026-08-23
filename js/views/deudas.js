@@ -83,7 +83,11 @@ const DeudasView = {
     }
 
     const activas = todas.filter(d => d.activa);
-    const totalMensual = activas.reduce((sum, d) => sum + toBaseCurrency(d.monto, d.moneda), 0);
+    const activasFiltradas = activas.filter(d => this.filtro === 'todos' || d.tipo === this.filtro);
+    const totalMensual = activasFiltradas.reduce((sum, d) => sum + toBaseCurrency(d.monto, d.moneda), 0);
+    const labelTotal = this.filtro === 'suscripcion' ? 'Total mensual en suscripciones'
+      : this.filtro === 'deuda' ? 'Total mensual en deudas'
+      : 'Total mensual (activas)';
 
     const suscripciones = todas.filter(d => d.tipo === 'suscripcion' && (this.filtro === 'todos' || this.filtro === 'suscripcion'));
     const deudas = todas.filter(d => d.tipo === 'deuda' && (this.filtro === 'todos' || this.filtro === 'deuda'));
@@ -146,9 +150,9 @@ const DeudasView = {
     container.innerHTML = `
       <div class="hero-card">
         <div class="hero-glow"></div>
-        <div class="hero-label">Total mensual (activas)</div>
+        <div class="hero-label">${labelTotal}</div>
         <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
-        <div class="hero-trend pos" style="color:var(--text-dim);">${activas.length} activo(s) este mes</div>
+        <div class="hero-trend pos" style="color:var(--text-dim);">${activasFiltradas.length} activo(s) este mes</div>
         <div class="detail-header-badge" style="position:absolute;top:20px;right:20px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>
         </div>

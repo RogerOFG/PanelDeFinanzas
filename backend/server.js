@@ -21,6 +21,7 @@ app.use('/api/prestamos', requireAuth, require('./routes/prestamos'));
 app.use('/api/deudas', requireAuth, require('./routes/deudas'));
 app.use('/api/config', requireAuth, require('./routes/config'));
 app.use('/api/miembros', requireAuth, require('./routes/miembros'));
+app.use('/api/tarjetas', requireAuth, require('./routes/tarjetas'));
 
 const PORT = process.env.PORT || 4000;
 db.migrate()

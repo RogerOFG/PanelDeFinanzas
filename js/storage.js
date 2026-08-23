@@ -12,7 +12,8 @@ const ENDPOINTS = {
   metas: '/metas',
   prestamos: '/prestamos',
   deudas: '/deudas',
-  miembros: '/miembros'
+  miembros: '/miembros',
+  tarjetas: '/tarjetas'
 };
 
 async function apiFetch(path, options = {}) {
@@ -46,23 +47,24 @@ function savePrefs(prefs) {
 }
 
 const Storage = {
-  _db: { cuentas: [], transacciones: [], metas: [], prestamos: [], deudas: [], miembros: [], config: { tasaCambio: 4000 } },
+  _db: { cuentas: [], transacciones: [], metas: [], prestamos: [], deudas: [], miembros: [], tarjetas: [], config: { tasaCambio: 4000 } },
   _ready: false,
 
   // Carga todas las colecciones del usuario autenticado desde el backend.
   async initFromServer() {
     const prefs = loadPrefs();
-    const [cuentas, transacciones, metas, prestamos, deudas, miembros, config] = await Promise.all([
+    const [cuentas, transacciones, metas, prestamos, deudas, miembros, tarjetas, config] = await Promise.all([
       apiFetch('/cuentas'),
       apiFetch('/transacciones'),
       apiFetch('/metas'),
       apiFetch('/prestamos'),
       apiFetch('/deudas'),
       apiFetch('/miembros'),
+      apiFetch('/tarjetas'),
       apiFetch('/config')
     ]);
     this._db = {
-      cuentas, transacciones, metas, prestamos, deudas, miembros,
+      cuentas, transacciones, metas, prestamos, deudas, miembros, tarjetas,
       config: {
         tasaCambio: config.tasaCambio,
         tasaCambioAuto: prefs.tasaCambioAuto !== false,
@@ -152,6 +154,15 @@ const Storage = {
   },
   pagoMiembro(id, { monto, cuentaId, fecha, soloRegistro }) {
     return apiFetch(`/miembros/${id}/pago`, { method: 'POST', body: JSON.stringify({ monto, cuentaId, fecha, soloRegistro }) });
+  },
+  agregarCompraTarjeta(tarjetaId, compra) {
+    return apiFetch(`/tarjetas/${tarjetaId}/compras`, { method: 'POST', body: JSON.stringify(compra) });
+  },
+  eliminarCompraTarjeta(compraId) {
+    return apiFetch(`/tarjetas/compras/${compraId}`, { method: 'DELETE' });
+  },
+  pagoTarjeta(id, { cuentaId, fecha }) {
+    return apiFetch(`/tarjetas/${id}/pago`, { method: 'POST', body: JSON.stringify({ cuentaId, fecha }) });
   },
 
   setConfig(patch) {

@@ -188,6 +188,7 @@ const CATEGORIAS_SUSCRIPCION = {
   }
 };
 const ICON_DEUDA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 8l10 4 10-4-10-6z"/><path d="M4 10v6c0 1.5 3.6 3 8 3s8-1.5 8-3v-6"/></svg>';
+const ICON_CARD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>';
 
 // Anima de 0 al valor real cualquier elemento con [data-count] dentro de `root`.
 // Úsalo tras insertar el HTML de una vista: animateCounters(container).

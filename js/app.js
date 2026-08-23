@@ -1,6 +1,6 @@
 const App = {
   currentView: 'dashboard',
-  moreViews: ['prestamos', 'deudas', 'ajustes'],
+  moreViews: ['prestamos', 'deudas', 'tarjetas', 'ajustes'],
 
   views: {
     dashboard: { title: 'Resumen', renderer: () => DashboardView.render(), skeleton: () => DashboardView.renderSkeleton() },
@@ -9,6 +9,7 @@ const App = {
     metas: { title: 'Metas de Ahorro', renderer: () => MetasView.render(), skeleton: () => MetasView.renderSkeleton() },
     prestamos: { title: 'Préstamos', renderer: () => PrestamosView.render(), skeleton: () => PrestamosView.renderSkeleton() },
     deudas: { title: 'Deudas y Suscripciones', renderer: () => DeudasView.render(), skeleton: () => DeudasView.renderSkeleton() },
+    tarjetas: { title: 'Tarjetas de Crédito', renderer: () => TarjetasView.render(), skeleton: () => TarjetasView.renderSkeleton() },
     ajustes: { title: 'Ajustes', renderer: () => AjustesView.render(), skeleton: () => AjustesView.renderSkeleton() }
   },
 
@@ -122,6 +123,7 @@ const App = {
     const icons = {
       prestamos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 8l4 4-4 4M7 8l-4 4 4 4"/><path d="M3 12h18"/></svg>',
       deudas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4M3 11V9a4 4 0 014-4h14M7 22l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>',
+      tarjetas: ICON_CARD,
       ajustes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.13.31.2.65.2 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'
     };
     UI.openModal('Más opciones', `

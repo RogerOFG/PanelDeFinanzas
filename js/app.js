@@ -57,7 +57,7 @@ const App = {
     UI.openModal('Notificaciones', `
       <div class="more-menu">
         ${pendientes.map(d => `
-          <div class="notif-item">
+          <div class="notif-item" data-ir-deuda="${d.id}" style="cursor:pointer;">
             <span class="notif-icon ${d.dias === 0 ? 'danger' : 'warn'}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
             </span>
@@ -68,7 +68,7 @@ const App = {
           </div>
         `).join('')}
         ${miembrosPendientes.map(r => `
-          <div class="notif-item">
+          <div class="notif-item" data-ir-miembro="${r.miembro.id}" data-ir-deuda="${r.deuda.id}" style="cursor:pointer;">
             <span class="notif-icon ${r.dias <= 0 ? 'danger' : 'warn'}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/></svg>
             </span>
@@ -80,7 +80,27 @@ const App = {
         `).join('')}
         ${(pendientes.length === 0 && miembrosPendientes.length === 0) ? '<div class="empty-state">No tienes notificaciones pendientes.</div>' : ''}
       </div>
-    `);
+    `, {
+      onMount: (root) => {
+        const irADeuda = (deudaId) => {
+          UI.closeModal();
+          this.currentView = 'deudas';
+          localStorage.setItem('finbot_last_view', 'deudas');
+          DeudasView.detalleId = deudaId;
+          this.activateView('deudas');
+          this.renderCurrentView();
+        };
+        root.querySelectorAll('[data-ir-miembro]').forEach(el => {
+          el.onclick = () => {
+            irADeuda(el.dataset.irDeuda);
+            DeudasView.openPagoMiembro(el.dataset.irMiembro);
+          };
+        });
+        root.querySelectorAll('[data-ir-deuda]:not([data-ir-miembro])').forEach(el => {
+          el.onclick = () => irADeuda(el.dataset.irDeuda);
+        });
+      }
+    });
   },
 
   navigate(view) {

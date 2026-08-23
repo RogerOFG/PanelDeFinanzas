@@ -150,7 +150,7 @@ const DeudasView = {
         <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
         <div class="hero-trend pos" style="color:var(--text-dim);">${activas.length} activo(s) este mes</div>
         <div class="detail-header-badge" style="position:absolute;top:20px;right:20px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7H5a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2v-7a2 2 0 00-2-2z"/><path d="M16 5H5a2 2 0 000 4h13"/><circle cx="17" cy="14" r="1.5"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>
         </div>
       </div>
 

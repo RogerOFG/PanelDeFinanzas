@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-const SELECT_FIELDS = `id, nombre, tipo, moneda, monto, monto_total AS "montoTotal",
+const SELECT_FIELDS = `id, nombre, tipo, categoria, moneda, monto, monto_total AS "montoTotal",
   monto_pagado AS "montoPagado", tipo_pago AS "tipoPago", dia_pago AS "diaPago",
   recordatorio_dias AS "recordatorioDias", activa, notas`;
 
@@ -19,22 +19,22 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { nombre, tipo, moneda, monto, montoTotal, tipoPago, diaPago, recordatorioDias, activa, notas } = req.body;
+  const { nombre, tipo, categoria, moneda, monto, montoTotal, tipoPago, diaPago, recordatorioDias, activa, notas } = req.body;
   const { rows } = await pool.query(
-    `INSERT INTO deudas (usuario_id, nombre, tipo, moneda, monto, monto_total, tipo_pago, dia_pago, recordatorio_dias, activa, notas)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING ${SELECT_FIELDS};`,
-    [req.usuario.id, nombre, tipo, moneda, monto, montoTotal || null, tipoPago || 'fijo', diaPago, recordatorioDias ?? 3, activa !== false, notas || null]
+    `INSERT INTO deudas (usuario_id, nombre, tipo, categoria, moneda, monto, monto_total, tipo_pago, dia_pago, recordatorio_dias, activa, notas)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING ${SELECT_FIELDS};`,
+    [req.usuario.id, nombre, tipo, categoria || null, moneda, monto, montoTotal || null, tipoPago || 'fijo', diaPago, recordatorioDias ?? 3, activa !== false, notas || null]
   );
   res.status(201).json({ ...rows[0], historialPagos: [] });
 });
 
 router.put('/:id', async (req, res) => {
-  const { nombre, tipo, moneda, monto, montoTotal, montoPagado, tipoPago, diaPago, recordatorioDias, activa, notas } = req.body;
+  const { nombre, tipo, categoria, moneda, monto, montoTotal, montoPagado, tipoPago, diaPago, recordatorioDias, activa, notas } = req.body;
   const { rows } = await pool.query(
-    `UPDATE deudas SET nombre=$1, tipo=$2, moneda=$3, monto=$4, monto_total=$5, monto_pagado=$6,
-       tipo_pago=$7, dia_pago=$8, recordatorio_dias=$9, activa=$10, notas=$11
-     WHERE id=$12 AND usuario_id=$13 RETURNING ${SELECT_FIELDS};`,
-    [nombre, tipo, moneda, monto, montoTotal || null, montoPagado || 0, tipoPago || 'fijo', diaPago, recordatorioDias ?? 3, activa !== false, notas || null, req.params.id, req.usuario.id]
+    `UPDATE deudas SET nombre=$1, tipo=$2, categoria=$3, moneda=$4, monto=$5, monto_total=$6, monto_pagado=$7,
+       tipo_pago=$8, dia_pago=$9, recordatorio_dias=$10, activa=$11, notas=$12
+     WHERE id=$13 AND usuario_id=$14 RETURNING ${SELECT_FIELDS};`,
+    [nombre, tipo, categoria || null, moneda, monto, montoTotal || null, montoPagado || 0, tipoPago || 'fijo', diaPago, recordatorioDias ?? 3, activa !== false, notas || null, req.params.id, req.usuario.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Deuda no encontrada' });
   res.json(rows[0]);

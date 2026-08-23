@@ -73,8 +73,13 @@ const DashboardView = {
     const prestado = prestamos.filter(p => p.tipo === 'dado').reduce((s, p) => s + toBaseCurrency(p.monto - p.montoPagado, p.moneda), 0);
     const debido = prestamos.filter(p => p.tipo === 'recibido').reduce((s, p) => s + toBaseCurrency(p.monto - p.montoPagado, p.moneda), 0);
 
+    const tarjetasPendientes = Storage.get('tarjetas')
+      .filter(t => t.activa && typeof TarjetasView !== 'undefined' && !TarjetasView.pagadoEsteCiclo(t) && TarjetasView.totalPorPagar(t) > 0)
+      .map(t => ({ nombre: t.nombre, prox: TarjetasView.proximoCorte(t.diaCorte), monto: TarjetasView.totalPorPagar(t), moneda: t.moneda, esTarjeta: true }));
+
     const proximosPagos = deudas
       .map(d => ({ ...d, prox: DeudasView.proximoPago(d.diaPago) }))
+      .concat(tarjetasPendientes)
       .sort((a, b) => a.prox.localeCompare(b.prox))
       .slice(0, 4);
 
@@ -112,7 +117,8 @@ const DashboardView = {
 
     const pagosHtml = proximosPagos.length ? proximosPagos.map(d => {
       const dias = daysUntil(d.prox);
-      const { icon, color } = (typeof DeudasView !== 'undefined' && DeudasView.iconoDeuda) ? DeudasView.iconoDeuda(d) : { icon: icons.transferencia, color: 'var(--accent)' };
+      const { icon, color } = d.esTarjeta ? { icon: ICON_CARD, color: 'var(--accent-2)' }
+        : (typeof DeudasView !== 'undefined' && DeudasView.iconoDeuda) ? DeudasView.iconoDeuda(d) : { icon: icons.transferencia, color: 'var(--accent)' };
       const vencido = dias !== null && dias < 0;
       const urgente = dias !== null && dias >= 0 && dias <= 3;
       const diasTexto = vencido ? 'Vencido' : dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `En ${dias} días`;

@@ -609,7 +609,7 @@ tr:last-child td { border-bottom: none; }
 .hero-card-debt .hero-sub {
   color: #717d8a;
   font-size: 13.5px;
-  font-weight: 400;
+  font-weight: 600;
   font-family: var(--font-body);
   line-height: 1.2;
   margin: 0;

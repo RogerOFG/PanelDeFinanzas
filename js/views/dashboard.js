@@ -75,7 +75,7 @@ const DashboardView = {
 
     const tarjetasPendientes = Storage.get('tarjetas')
       .filter(t => t.activa && typeof TarjetasView !== 'undefined' && !TarjetasView.pagadoEsteCiclo(t) && TarjetasView.totalPorPagar(t) > 0)
-      .map(t => ({ nombre: t.nombre, prox: TarjetasView.proximoCorte(t.diaCorte), monto: TarjetasView.totalPorPagar(t), moneda: t.moneda, esTarjeta: true }));
+      .map(t => ({ id: t.id, nombre: t.nombre, prox: TarjetasView.proximoCorte(t.diaCorte), monto: TarjetasView.totalPorPagar(t), moneda: t.moneda, esTarjeta: true }));
 
     const proximosPagos = deudas
       .map(d => ({ ...d, prox: DeudasView.proximoPago(d.diaPago) }))
@@ -123,7 +123,7 @@ const DashboardView = {
       const urgente = dias !== null && dias >= 0 && dias <= 3;
       const diasTexto = vencido ? 'Vencido' : dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `En ${dias} días`;
       return `
-        <div class="tx-item">
+        <div class="tx-item" style="cursor:pointer;" ${d.esTarjeta ? `data-ir-tarjeta="${d.id}"` : `data-ir-deuda="${d.id}"`}>
           <div class="tx-icon" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${icon}</div>
           <div class="tx-body">
             <div class="tx-title">${escapeHtml(d.nombre)}</div>
@@ -215,6 +215,21 @@ const DashboardView = {
     container.querySelector('#qa-send').onclick = () => TransaccionesView.openForm(null, 'gasto');
     container.querySelector('#qa-add').onclick = () => TransaccionesView.openForm(null, 'ingreso');
     container.querySelector('#qa-history').onclick = () => App.navigate('transacciones');
+
+    const irAVista = (view, detalleId) => {
+      App.currentView = view;
+      localStorage.setItem('finbot_last_view', view);
+      if (view === 'deudas') DeudasView.detalleId = detalleId;
+      if (view === 'tarjetas') TarjetasView.detalleId = detalleId;
+      App.activateView(view);
+      App.renderCurrentView();
+    };
+    container.querySelectorAll('[data-ir-deuda]').forEach(el => {
+      el.onclick = () => irAVista('deudas', el.dataset.irDeuda);
+    });
+    container.querySelectorAll('[data-ir-tarjeta]').forEach(el => {
+      el.onclick = () => irAVista('tarjetas', el.dataset.irTarjeta);
+    });
 
     animateCounters(container);
   }

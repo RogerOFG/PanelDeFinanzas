@@ -114,12 +114,15 @@ const TarjetasView = {
     };
 
     container.innerHTML = `
-      <div class="hero-card">
-        <div class="hero-glow"></div>
-        <div class="hero-label">Total por pagar este mes</div>
-        <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
-        <div class="hero-trend pos" style="color:var(--text-dim);">${tarjetas.filter(t => t.activa).length} tarjeta(s) activa(s)</div>
-        <div class="hero-icon-badge">${ICON_CARD}</div>
+      <div class="hero-card-debt">
+        <div class="hero-card-left">
+          <div class="hero-label">Total por pagar este mes</div>
+          <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
+          <div class="hero-sub">${tarjetas.filter(t => t.activa).length} tarjeta(s) activa(s)</div>
+        </div>
+        <div class="hero-icon-badge">
+          ${ICON_CARD}
+        </div>
       </div>
 
       <div class="section-header">

@@ -1,7 +1,7 @@
 // Service worker mínimo: solo cachea el "shell" estático (HTML/CSS/JS/íconos)
 // para que Chrome considere la app instalable. Nunca cachea /api/* — los
 // datos financieros siempre deben venir del servidor, no de una copia vieja.
-const CACHE_NAME = 'finbot-shell-v1';
+const CACHE_NAME = 'finbot-shell-v2';
 
 const SHELL_ASSETS = [
   '/',
@@ -49,18 +49,19 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   if (event.request.method !== 'GET') return;
 
+  // Network-first: siempre intenta traer la versión más reciente del shell;
+  // solo cae al caché si no hay red (offline). Con cache-first el navegador
+  // quedaba pegado a una copia vieja del HTML/CSS/JS para siempre, aunque
+  // se publicaran cambios — network-first evita ese problema.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

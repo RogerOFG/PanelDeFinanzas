@@ -49,14 +49,24 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
 .brand-icon {
   width: 30px; height: 30px; flex-shrink: 0;
   border-radius: 9px;
   background: var(--accent);
   display: flex; align-items: center; justify-content: center;
 }
-.topbar h1 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.topbar h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(15px, 4.8vw, 20px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
 /* Login */
@@ -585,6 +595,79 @@ tr:last-child td { border-bottom: none; }
 
 .text-dim { color: var(--text-dim); }
 .mt-0 { margin-top: 0; }
+
+/* Deudas y suscripciones — chips de filtro */
+.chip-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; }
+.chip-tab {
+  appearance: none; cursor: pointer; flex-shrink: 0;
+  background: var(--bg-panel-2); border: 1px solid var(--border); color: var(--text-dim);
+  padding: 9px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  font-family: var(--font-body); min-height: 36px;
+}
+.chip-tab.active { background: var(--accent); border-color: var(--accent); color: #0a0c10; }
+
+/* Filas de lista para deudas/suscripciones */
+.debt-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.debt-item {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.debt-item-top { display: flex; align-items: center; gap: 12px; }
+.debt-icon { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.debt-icon svg { width: 20px; height: 20px; }
+.debt-item-body { flex: 1; min-width: 0; }
+.debt-item-name { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.debt-item-sub { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-dim); margin-top: 3px; }
+.debt-item-sub svg { width: 12px; height: 12px; }
+.debt-item-right { text-align: right; flex-shrink: 0; }
+.debt-item-amount { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.debt-item-chevron { width: 18px; height: 18px; color: var(--text-dim); flex-shrink: 0; }
+.debt-item-actions { display: flex; gap: 8px; }
+.debt-item-actions .btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.debt-item-actions svg { width: 14px; height: 14px; }
+.debt-item-progress-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+/* Pantalla de detalle */
+.detail-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.detail-topbar-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.detail-header-card {
+  background: linear-gradient(160deg, #182018 0%, #101512 60%, var(--bg-panel-2) 100%);
+  border: 1px solid #223028; border-radius: 20px; padding: 20px;
+  display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; position: relative; overflow: hidden;
+}
+.detail-header-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.detail-header-icon svg { width: 26px; height: 26px; }
+.detail-header-name { font-family: var(--font-display); font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+.detail-header-price { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin: 8px 0; }
+.detail-header-badge {
+  position: absolute; top: 18px; right: 18px; width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; color: var(--accent);
+}
+.detail-header-badge svg { width: 20px; height: 20px; }
+.detail-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row-label { display: flex; align-items: center; gap: 9px; color: var(--text-dim); }
+.detail-row-label svg { width: 16px; height: 16px; color: var(--accent); }
+.detail-row-value { font-weight: 600; text-align: right; }
+.member-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.member-row:last-child { border-bottom: none; }
+.member-avatar {
+  width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #0a0c10; flex-shrink: 0;
+}
+.member-body { flex: 1; min-width: 0; }
+.member-name { font-size: 13.5px; font-weight: 600; }
+.member-role { font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.history-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.history-row:last-child { border-bottom: none; }
+.history-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(126,224,196,0.12); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.history-icon svg { width: 15px; height: 15px; }
+.history-body { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
+.history-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; font-weight: 400; }
+.detail-actions { display: flex; gap: 10px; margin: 20px 0 4px; }
+.detail-actions .btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.detail-actions svg { width: 16px; height: 16px; }
 
 /* Skeleton loading (mientras se carga desde el servidor) */
 @keyframes skeleton-sweep {

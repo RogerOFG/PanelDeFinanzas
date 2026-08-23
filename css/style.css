@@ -701,6 +701,8 @@ tr:last-child td { border-bottom: none; }
   font-family: var(--font-body); min-height: 36px;
 }
 .chip-tab.active { background: var(--accent); border-color: var(--accent); color: #0a0c10; }
+.chip-tab { white-space: nowrap; }
+.chip-tab svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 
 /* Filas de lista para deudas/suscripciones */
 .debt-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
@@ -722,6 +724,22 @@ tr:last-child td { border-bottom: none; }
 .debt-item-actions .btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .debt-item-actions svg { width: 14px; height: 14px; }
 .debt-item-progress-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+/* Historial mensual */
+.month-card.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mini-stats-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mini-stats-3 .mini-stat { padding: 10px 4px; text-align: center; }
+.mini-stat-value.sm { font-size: clamp(10.5px, 3.2vw, 13px); white-space: nowrap; }
+.month-card-cats { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.cat-chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.cat-chip-row::-webkit-scrollbar { display: none; }
+.cat-chip {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-panel-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 12px; font-size: 11.5px; font-weight: 600; color: var(--text-dim); white-space: nowrap;
+}
+.cat-chip svg { width: 13px; height: 13px; color: var(--accent); flex-shrink: 0; }
+.cat-chip strong { color: var(--text); }
 
 /* Pantalla de detalle */
 .detail-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }

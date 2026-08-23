@@ -1,12 +1,5 @@
-const { OAuth2Client } = require('google-auth-library');
+const jwt = require('jsonwebtoken');
 const pool = require('../db');
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '')
-  .split(',')
-  .map(e => e.trim())
-  .filter(Boolean);
 
 async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || '';
@@ -15,23 +8,13 @@ async function requireAuth(req, res, next) {
 
   let payload;
   try {
-    const ticket = await client.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID });
-    payload = ticket.getPayload();
+    payload = jwt.verify(token, process.env.SESSION_SECRET);
   } catch (e) {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 
-  const email = payload.email;
-  if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(email)) {
-    return res.status(403).json({ error: 'Cuenta no autorizada' });
-  }
-
-  const result = await pool.query(
-    `INSERT INTO usuarios (email, nombre, picture) VALUES ($1, $2, $3)
-     ON CONFLICT (email) DO UPDATE SET nombre = EXCLUDED.nombre, picture = EXCLUDED.picture
-     RETURNING id, email, nombre, picture;`,
-    [email, payload.name, payload.picture]
-  );
+  const result = await pool.query(`SELECT id, email, nombre, picture FROM usuarios WHERE id = $1;`, [payload.uid]);
+  if (!result.rows[0]) return res.status(401).json({ error: 'Usuario no encontrado' });
 
   req.usuario = result.rows[0];
   next();

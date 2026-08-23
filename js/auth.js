@@ -88,7 +88,7 @@ const Auth = {
     google.accounts.id.prompt();
   },
 
-  handleCredentialResponse(response) {
+  async handleCredentialResponse(response) {
     let payload;
     try {
       payload = this.decodeJwt(response.credential);
@@ -106,12 +106,28 @@ const Auth = {
       return;
     }
 
+    document.getElementById('login-status').textContent = 'Iniciando sesión...';
+
+    let data;
+    try {
+      const res = await fetch(`${window.FINBOT_API_BASE}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Error de autenticación');
+      data = await res.json();
+    } catch (e) {
+      document.getElementById('login-status').textContent = `No se pudo iniciar sesión: ${e.message}`;
+      return;
+    }
+
     const session = {
-      email,
-      name: payload.name,
-      picture: payload.picture,
-      exp: payload.exp,
-      token: response.credential
+      email: data.usuario.email,
+      name: data.usuario.nombre,
+      picture: data.usuario.picture,
+      exp: data.exp,
+      token: data.token
     };
 
     localStorage.setItem(AUTH_CONFIG.SESSION_KEY, JSON.stringify(session));

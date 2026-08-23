@@ -256,12 +256,13 @@ const DeudasView = {
       <div class="detail-header-card">
         <div class="detail-header-icon" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${icon}</div>
         <div style="flex:1;min-width:0;">
-          <div class="detail-header-name">${escapeHtml(d.nombre)}</div>
-          <span class="pill" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${d.tipo === 'suscripcion' ? (CATEGORIAS_SUSCRIPCION[d.categoria]?.label || 'Otros') : 'Deuda'}</span>
+          <div class="detail-header-name">
+            ${escapeHtml(d.nombre)}
+            <span class="pill" style="margin-left: 10px; background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${d.tipo === 'suscripcion' ? (CATEGORIAS_SUSCRIPCION[d.categoria]?.label || 'Otros') : 'Deuda'}</span>
+            <span class="pill ${estado.cls}">${estado.label}</span>
+          </div>
           <div class="detail-header-price">${formatMoney(d.monto, d.moneda)}<span class="text-dim" style="font-size:12px;font-weight:400;">/mes</span></div>
-          <span class="pill ${estado.cls}">${estado.label}</span>
         </div>
-        <div class="detail-header-badge">${ICON_CALENDAR}</div>
       </div>
 
       ${tieneTotal ? `

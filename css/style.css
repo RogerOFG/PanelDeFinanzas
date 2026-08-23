@@ -7,6 +7,7 @@
   --text-dim: #6b7480;
   --accent: #7ee0c4;
   --accent-2: #a5b4ff;
+  --accent-3: #bec74a;
   --danger: #e08787;
   --warning: #e0b877;
   --radius: 16px;
@@ -557,6 +558,77 @@ tr:last-child td { border-bottom: none; }
   display: flex; align-items: center; justify-content: center; color: var(--accent);
 }
 .hero-icon-badge svg { width: 28px; height: 28px; }
+
+/* Deudas & Suscripciones Hero Banner */
+.hero-card-debt {
+  background: #0d1217;
+  background: linear-gradient(150deg, #0e141a 0%, #070b0e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 24px 26px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+}
+.hero-card-debt .hero-card-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+.hero-card-debt .hero-label {
+  color: #4fd1a5;
+  opacity: 1;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+.hero-card-debt .hero-value {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 8vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  line-height: 1.15;
+  margin: 0 0 6px 0;
+}
+.hero-card-debt .hero-sub {
+  color: #717d8a;
+  font-size: 13.5px;
+  font-weight: 400;
+  font-family: var(--font-body);
+  line-height: 1.2;
+  margin: 0;
+}
+.hero-card-debt .hero-icon-badge {
+  
+  
+  width: 72px;
+  height: 72px;
+  border-radius: 28px;
+  flex-shrink: 0;
+  align-self: center;
+  background: linear-gradient(315deg, rgb(0 0 0), rgb(79 209 165 / 26%));
+  border: none;
+  box-shadow:  -10px -10px 12px rgba(79, 209, 165, 0.10), 2px 2px 5px rgb(23 43 33 / 40%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4fd1a5;
+}
+.hero-card-debt .hero-icon-badge svg {
+  width: 30px;
+  height: 30px;
+  stroke-width: 2.1;
+  display: block;
+}
 .quick-actions {
   position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px;
 }

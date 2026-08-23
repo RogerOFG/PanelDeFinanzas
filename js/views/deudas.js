@@ -19,11 +19,13 @@ const DeudasView = {
         <div class="skeleton" style="width:200px;height:32px;border-radius:8px;"></div>
       </div>`;
     container.innerHTML = `
-      <div class="grid cols-1" style="margin-bottom:20px;">
-        <div class="card">
-          <div class="skeleton skeleton-line" style="width:150px;margin-bottom:10px;"></div>
-          <div class="skeleton skeleton-line xl" style="width:55%;"></div>
+      <div class="hero-card-debt" style="margin-bottom:18px;">
+        <div class="hero-card-left">
+          <div class="skeleton skeleton-line" style="width:130px;margin-bottom:10px;"></div>
+          <div class="skeleton skeleton-line xl" style="width:180px;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-line" style="width:110px;"></div>
         </div>
+        <div class="skeleton" style="width:70px;height:70px;border-radius:28px;"></div>
       </div>
       <div class="section-header">
         <div class="skeleton skeleton-line" style="width:150px;"></div>
@@ -148,11 +150,12 @@ const DeudasView = {
     };
 
     container.innerHTML = `
-      <div class="hero-card">
-        <div class="hero-glow"></div>
-        <div class="hero-label">${labelTotal}</div>
-        <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
-        <div class="hero-trend pos" style="color:var(--text-dim);">${activasFiltradas.length} activo(s) este mes</div>
+      <div class="hero-card-debt">
+        <div class="hero-card-left">
+          <div class="hero-label">${labelTotal}</div>
+          <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
+          <div class="hero-sub">${activasFiltradas.length} ${activasFiltradas.length === 1 ? 'activo' : 'activos'} este mes</div>
+        </div>
         <div class="hero-icon-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>
         </div>

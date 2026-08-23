@@ -142,7 +142,7 @@ const CATEGORIAS_SUSCRIPCION = {
   },
   almacenamiento: {
     label: 'Almacenamiento',
-    color: 'var(--text-dim)',
+    color: 'var(--accent-3)',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2M5.5 5h13l3.5 7v7a1 1 0 01-1 1H4a1 1 0 01-1-1v-7z"/></svg>'
   },
   servicios: {

@@ -40,6 +40,8 @@ const TransaccionesView = {
           <div class="skeleton skeleton-line" style="width:75%;"></div>
         </div>
         <div class="skeleton skeleton-line" style="width:55px;"></div>
+        <div class="skeleton" style="width:26px;height:26px;border-radius:8px;flex-shrink:0;"></div>
+        <div class="skeleton" style="width:26px;height:26px;border-radius:8px;flex-shrink:0;"></div>
       </div>`;
     container.innerHTML = `
       <div class="section-header">
@@ -52,7 +54,9 @@ const TransaccionesView = {
         <div class="skeleton" style="width:150px;height:40px;border-radius:10px;"></div>
       </div>
       <div class="skeleton skeleton-line" style="width:70px;margin:14px 0 10px;"></div>
-      <div class="tx-list">${item}${item}${item}${item}</div>
+      <div class="tx-list">${item}${item}</div>
+      <div class="skeleton skeleton-line" style="width:70px;margin:14px 0 10px;"></div>
+      <div class="tx-list">${item}${item}</div>
     `;
   },
 

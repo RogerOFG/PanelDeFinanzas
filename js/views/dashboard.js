@@ -51,6 +51,20 @@ const DashboardView = {
 
       <div class="skeleton skeleton-line" style="width:160px;margin-bottom:12px;"></div>
       <div class="tx-list" style="margin-bottom:24px;">${skeletonTx}${skeletonTx}${skeletonTx}</div>
+
+      <div class="skeleton skeleton-line" style="width:130px;margin-bottom:12px;"></div>
+      <div class="tx-list" style="margin-bottom:18px;">${skeletonTx}${skeletonTx}</div>
+
+      <div class="mini-stats" style="margin-bottom:0;">
+        <div class="mini-stat">
+          <div class="skeleton skeleton-line" style="width:70%;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-line lg" style="width:55%;"></div>
+        </div>
+        <div class="mini-stat">
+          <div class="skeleton skeleton-line" style="width:70%;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-line lg" style="width:55%;"></div>
+        </div>
+      </div>
     `;
   },
 

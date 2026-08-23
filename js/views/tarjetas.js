@@ -9,16 +9,35 @@ const TarjetasView = {
 
   renderSkeleton() {
     const container = document.getElementById('view-tarjetas');
+    const itemSkeleton = `
+      <div class="debt-item">
+        <div class="debt-item-top">
+          <div class="skeleton" style="width:44px;height:44px;border-radius:13px;flex-shrink:0;"></div>
+          <div class="debt-item-body">
+            <div class="skeleton skeleton-line" style="width:60%;margin-bottom:8px;"></div>
+            <div class="skeleton skeleton-line" style="width:50%;margin-bottom:6px;"></div>
+            <div class="skeleton skeleton-line" style="width:70%;"></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div class="skeleton skeleton-line" style="width:70px;margin-bottom:6px;margin-left:auto;"></div>
+            <div class="skeleton skeleton-line" style="width:50px;height:16px;border-radius:999px;margin-left:auto;"></div>
+          </div>
+        </div>
+      </div>`;
     container.innerHTML = `
-      <div class="hero-card" style="margin-bottom:18px;">
-        <div class="skeleton skeleton-line" style="width:130px;margin-bottom:10px;"></div>
-        <div class="skeleton skeleton-line xl" style="width:180px;margin-bottom:8px;"></div>
+      <div class="hero-card-debt" style="margin-bottom:18px;">
+        <div class="hero-card-left">
+          <div class="skeleton skeleton-line" style="width:170px;margin-bottom:10px;"></div>
+          <div class="skeleton skeleton-line xl" style="width:180px;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-line" style="width:120px;"></div>
+        </div>
+        <div class="skeleton" style="width:70px;height:70px;border-radius:28px;"></div>
+      </div>
+      <div class="section-header">
         <div class="skeleton skeleton-line" style="width:110px;"></div>
+        <div class="skeleton skeleton-line" style="width:80px;"></div>
       </div>
-      <div class="debt-list">
-        <div class="skeleton" style="width:100%;height:96px;border-radius:16px;"></div>
-        <div class="skeleton" style="width:100%;height:96px;border-radius:16px;"></div>
-      </div>
+      <div class="debt-list">${itemSkeleton}${itemSkeleton}</div>
     `;
   },
 

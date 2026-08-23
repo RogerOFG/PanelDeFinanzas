@@ -12,7 +12,8 @@ const MetasView = {
           </div>
         </div>
         <div class="skeleton" style="height:7px;border-radius:99px;margin-bottom:8px;"></div>
-        <div class="skeleton skeleton-line" style="width:60%;"></div>
+        <div class="skeleton skeleton-line" style="width:60%;margin-bottom:6px;"></div>
+        <div class="skeleton skeleton-line" style="width:45%;"></div>
       </div>`;
     container.innerHTML = `
       <div class="section-header">

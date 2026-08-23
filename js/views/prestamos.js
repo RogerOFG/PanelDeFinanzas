@@ -8,13 +8,15 @@ const PrestamosView = {
         <div class="section-header" style="margin-bottom:10px;">
           <div class="skeleton skeleton-line" style="width:150px;"></div>
           <div style="display:flex;gap:6px;">
+            <div class="skeleton" style="width:60px;height:28px;border-radius:8px;"></div>
             <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
             <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
           </div>
         </div>
         <div class="skeleton" style="height:7px;border-radius:99px;margin-bottom:8px;"></div>
         <div class="skeleton skeleton-line" style="width:70%;margin-bottom:6px;"></div>
-        <div class="skeleton skeleton-line" style="width:55%;"></div>
+        <div class="skeleton skeleton-line" style="width:55%;margin-bottom:6px;"></div>
+        <div class="skeleton skeleton-line" style="width:45%;"></div>
       </div>`;
     container.innerHTML = `
       <div class="section-header">

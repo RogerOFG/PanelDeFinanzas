@@ -5,12 +5,36 @@ const HistorialView = {
 
   renderSkeleton() {
     const container = document.getElementById('view-historial');
+    const monthCard = `
+      <div class="debt-item month-card">
+        <div class="debt-item-top">
+          <div class="skeleton" style="width:44px;height:44px;border-radius:13px;flex-shrink:0;"></div>
+          <div class="debt-item-body">
+            <div class="skeleton skeleton-line" style="width:55%;margin-bottom:8px;"></div>
+            <div class="skeleton skeleton-line" style="width:40%;"></div>
+          </div>
+        </div>
+        <div class="mini-stats-3">
+          <div class="mini-stat"><div class="skeleton skeleton-line" style="width:60%;margin:0 auto 6px;"></div><div class="skeleton skeleton-line sm" style="width:80%;margin:0 auto;"></div></div>
+          <div class="mini-stat"><div class="skeleton skeleton-line" style="width:60%;margin:0 auto 6px;"></div><div class="skeleton skeleton-line sm" style="width:80%;margin:0 auto;"></div></div>
+          <div class="mini-stat"><div class="skeleton skeleton-line" style="width:60%;margin:0 auto 6px;"></div><div class="skeleton skeleton-line sm" style="width:80%;margin:0 auto;"></div></div>
+        </div>
+        <div class="month-card-cats">
+          <div class="skeleton skeleton-line" style="width:80px;"></div>
+          <div class="cat-chip-row">
+            <div class="skeleton" style="width:90px;height:26px;border-radius:999px;flex-shrink:0;"></div>
+            <div class="skeleton" style="width:90px;height:26px;border-radius:999px;flex-shrink:0;"></div>
+            <div class="skeleton" style="width:90px;height:26px;border-radius:999px;flex-shrink:0;"></div>
+          </div>
+        </div>
+      </div>`;
     container.innerHTML = `
-      <div class="debt-list">
-        <div class="skeleton" style="width:100%;height:170px;border-radius:16px;"></div>
-        <div class="skeleton" style="width:100%;height:170px;border-radius:16px;"></div>
-        <div class="skeleton" style="width:100%;height:170px;border-radius:16px;"></div>
+      <div class="chip-tabs">
+        <div class="skeleton" style="width:60px;height:36px;border-radius:999px;"></div>
+        <div class="skeleton" style="width:90px;height:36px;border-radius:999px;"></div>
+        <div class="skeleton" style="width:80px;height:36px;border-radius:999px;"></div>
       </div>
+      <div class="debt-list">${monthCard}${monthCard}${monthCard}</div>
     `;
   },
 

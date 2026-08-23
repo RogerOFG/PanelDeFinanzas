@@ -1,22 +1,27 @@
 const DeudasView = {
   renderSkeleton() {
     const container = document.getElementById('view-deudas');
-    const card = `
-      <div class="card">
-        <div class="section-header" style="margin-bottom:6px;">
-          <div>
-            <div class="skeleton skeleton-line" style="width:80px;height:18px;border-radius:999px;margin-bottom:8px;"></div>
-            <div class="skeleton skeleton-line" style="width:120px;"></div>
+    const itemSkeleton = (conProgreso) => `
+      <div class="debt-item">
+        <div class="debt-item-top">
+          <div class="skeleton" style="width:44px;height:44px;border-radius:13px;flex-shrink:0;"></div>
+          <div class="debt-item-body">
+            <div class="skeleton skeleton-line" style="width:70%;margin-bottom:8px;"></div>
+            <div class="skeleton skeleton-line" style="width:50%;margin-bottom:6px;"></div>
+            <div class="skeleton skeleton-line" style="width:40%;"></div>
           </div>
-          <div style="display:flex;gap:6px;">
-            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
-            <div class="skeleton" style="width:28px;height:28px;border-radius:8px;"></div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div class="skeleton skeleton-line" style="width:60px;margin-bottom:6px;margin-left:auto;"></div>
+            <div class="skeleton skeleton-line" style="width:50px;height:16px;border-radius:999px;margin-left:auto;"></div>
           </div>
         </div>
-        <div class="skeleton skeleton-line lg" style="width:50%;margin:10px 0;"></div>
-        <div class="skeleton skeleton-line" style="width:65%;margin-bottom:6px;"></div>
-        <div class="skeleton skeleton-line" style="width:45%;margin-bottom:10px;"></div>
-        <div class="skeleton" style="width:200px;height:32px;border-radius:8px;"></div>
+        ${conProgreso ? `
+          <div class="skeleton" style="height:7px;border-radius:99px;margin-top:4px;"></div>
+          <div style="display:flex;justify-content:space-between;">
+            <div class="skeleton skeleton-line" style="width:80px;"></div>
+            <div class="skeleton skeleton-line" style="width:80px;"></div>
+          </div>
+        ` : ''}
       </div>`;
     container.innerHTML = `
       <div class="hero-card-debt" style="margin-bottom:18px;">
@@ -27,11 +32,21 @@ const DeudasView = {
         </div>
         <div class="skeleton" style="width:70px;height:70px;border-radius:28px;"></div>
       </div>
+      <div class="chip-tabs">
+        <div class="skeleton" style="width:60px;height:36px;border-radius:999px;"></div>
+        <div class="skeleton" style="width:110px;height:36px;border-radius:999px;"></div>
+        <div class="skeleton" style="width:80px;height:36px;border-radius:999px;"></div>
+      </div>
       <div class="section-header">
         <div class="skeleton skeleton-line" style="width:150px;"></div>
-        <div class="skeleton" style="width:110px;height:40px;border-radius:10px;"></div>
+        <div class="skeleton skeleton-line" style="width:80px;"></div>
       </div>
-      <div class="grid cols-1">${card}${card}</div>
+      <div class="debt-list">${itemSkeleton(false)}${itemSkeleton(false)}</div>
+      <div class="section-header">
+        <div class="skeleton skeleton-line" style="width:80px;"></div>
+        <div class="skeleton skeleton-line" style="width:100px;"></div>
+      </div>
+      <div class="debt-list">${itemSkeleton(true)}</div>
     `;
   },
 

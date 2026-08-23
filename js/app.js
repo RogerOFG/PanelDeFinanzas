@@ -86,6 +86,7 @@ const App = {
   navigate(view) {
     this.currentView = view;
     localStorage.setItem('finbot_last_view', view);
+    if (view === 'deudas' && typeof DeudasView !== 'undefined') DeudasView.detalleId = null;
     this.activateView(view);
     this.renderCurrentView();
   },

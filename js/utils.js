@@ -116,6 +116,48 @@ const ICON_ACCOUNT_TIPO = {
 };
 const ACCOUNT_TIPO_COLOR = { banco: 'var(--accent)', efectivo: 'var(--warning)', inversion: 'var(--accent-2)', terceros: 'var(--text-dim)' };
 
+const ICON_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+const ICON_CALENDAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>';
+const ICON_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 20v-1a5 5 0 015-5h1"/><circle cy="8" cx="17" r="2.5"/><path d="M15.5 13.2A4 4 0 0122 17v1"/></svg>';
+const ICON_STATUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+const ICON_NOTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>';
+const ICON_CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
+
+const CATEGORIAS_SUSCRIPCION = {
+  streaming: {
+    label: 'Streaming',
+    color: 'var(--accent-2)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>'
+  },
+  movil: {
+    label: 'Móvil',
+    color: 'var(--warning)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>'
+  },
+  musica: {
+    label: 'Música',
+    color: 'var(--accent)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+  },
+  almacenamiento: {
+    label: 'Almacenamiento',
+    color: 'var(--text-dim)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2M5.5 5h13l3.5 7v7a1 1 0 01-1 1H4a1 1 0 01-1-1v-7z"/></svg>'
+  },
+  servicios: {
+    label: 'Servicios',
+    color: 'var(--danger)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'
+  },
+  otros: {
+    label: 'Otros',
+    color: 'var(--accent-2)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>'
+  }
+};
+const ICON_DEUDA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 8l10 4 10-4-10-6z"/><path d="M4 10v6c0 1.5 3.6 3 8 3s8-1.5 8-3v-6"/></svg>';
+
 // Anima de 0 al valor real cualquier elemento con [data-count] dentro de `root`.
 // Úsalo tras insertar el HTML de una vista: animateCounters(container).
 const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

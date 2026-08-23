@@ -33,11 +33,46 @@ const DeudasView = {
     `;
   },
 
-  render() {
-    const container = document.getElementById('view-deudas');
-    const deudas = Storage.get('deudas').slice().sort((a, b) => (a.diaPago || 31) - (b.diaPago || 31));
+  filtro: 'todos',
+  detalleId: null,
 
-    if (deudas.length === 0) {
+  render() {
+    if (this.detalleId && Storage.find('deudas', this.detalleId)) {
+      this.renderDetalle(this.detalleId);
+    } else {
+      this.detalleId = null;
+      this.renderLista();
+    }
+    App.updateNotifDot();
+  },
+
+  iconoDeuda(d) {
+    if (d.tipo === 'deuda') return { icon: ICON_DEUDA, color: 'var(--danger)' };
+    const cat = CATEGORIAS_SUSCRIPCION[d.categoria] || CATEGORIAS_SUSCRIPCION.otros;
+    return { icon: cat.icon, color: cat.color };
+  },
+
+  estadoDeuda(d) {
+    const dias = daysUntil(this.proximoPago(d.diaPago));
+    const enAlerta = dias !== null && dias <= (d.recordatorioDias ?? 3) && dias >= 0;
+    const pagado = this.pagadoEsteCiclo(d);
+    if (!d.activa) return { label: 'Inactiva', cls: 'tipo' };
+    if (pagado) return { label: 'Pagado', cls: 'pos' };
+    if (dias !== null && dias < 0) return { label: 'Vencido', cls: 'neg' };
+    if (enAlerta) return { label: 'Vence pronto', cls: 'warn' };
+    return { label: 'Al día', cls: 'tipo' };
+  },
+
+  initials(nombre) {
+    const partes = String(nombre || '').trim().split(/\s+/);
+    return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase() || '?';
+  },
+
+  renderLista() {
+    const container = document.getElementById('view-deudas');
+    const todas = Storage.get('deudas').slice().sort((a, b) => (a.diaPago || 31) - (b.diaPago || 31));
+
+    if (todas.length === 0) {
       container.innerHTML = `
         <div class="empty-state card">
           <p>No tienes deudas o suscripciones registradas.</p>
@@ -47,86 +82,278 @@ const DeudasView = {
       return;
     }
 
-    const totalMensual = deudas.filter(d => d.activa).reduce((sum, d) => sum + toBaseCurrency(d.monto, d.moneda), 0);
+    const activas = todas.filter(d => d.activa);
+    const totalMensual = activas.reduce((sum, d) => sum + toBaseCurrency(d.monto, d.moneda), 0);
 
-    const cardHtml = (d) => {
-      const prox = this.proximoPago(d.diaPago);
-      const dias = daysUntil(prox);
-      const enAlerta = d.activa && dias !== null && dias <= (d.recordatorioDias ?? 3) && dias >= 0;
-      const pagadoEsteCiclo = this.pagadoEsteCiclo(d);
-      const ultimoPago = (d.historialPagos || []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+    const suscripciones = todas.filter(d => d.tipo === 'suscripcion' && (this.filtro === 'todos' || this.filtro === 'suscripcion'));
+    const deudas = todas.filter(d => d.tipo === 'deuda' && (this.filtro === 'todos' || this.filtro === 'deuda'));
+
+    const filaSuscripcion = (d) => {
+      const { icon, color } = this.iconoDeuda(d);
+      const estado = this.estadoDeuda(d);
+      const miembros = this.miembrosDe(d.id);
+      const activosCount = miembros.filter(m => m.activo).length;
+      return `
+        <div class="debt-item" data-abrir="${d.id}">
+          <div class="debt-item-top">
+            <div class="debt-icon" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${icon}</div>
+            <div class="debt-item-body">
+              <div class="debt-item-name">${escapeHtml(d.nombre)} <span class="pill" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${CATEGORIAS_SUSCRIPCION[d.categoria]?.label || 'Otros'}</span></div>
+              <div class="debt-item-sub">Próximo pago: ${d.diaPago} de cada mes</div>
+              <div class="debt-item-sub">${ICON_USERS}${miembros.length ? `${activosCount} de ${miembros.length} miembros` : '0 miembros'}</div>
+            </div>
+            <div class="debt-item-right">
+              <div class="debt-item-amount">${formatMoney(d.monto, d.moneda)}<span class="text-dim" style="font-size:10.5px;font-weight:400;">/mes</span></div>
+              <span class="pill ${estado.cls}" style="margin-top:6px;display:inline-block;">${estado.label}</span>
+            </div>
+            <span class="debt-item-chevron">${ICON_CHEVRON}</span>
+          </div>
+        </div>`;
+    };
+
+    const filaDeuda = (d) => {
+      const { icon, color } = this.iconoDeuda(d);
       const tieneTotal = d.montoTotal && d.montoTotal > 0;
       const pendiente = tieneTotal ? Math.max(0, d.montoTotal - (d.montoPagado || 0)) : null;
       const pct = tieneTotal ? Math.min(100, Math.round(((d.montoPagado || 0) / d.montoTotal) * 100)) : 0;
-
-      const urgente = !pagadoEsteCiclo && d.activa && (dias < 0 || enAlerta);
-      const pagoBtnClass = pagadoEsteCiclo ? 'btn small success' : (urgente ? 'btn small danger' : 'btn small warning');
-
+      const pagadoEsteCiclo = this.pagadoEsteCiclo(d);
       return `
-        <div class="card">
-          <div class="section-header" style="margin-bottom:6px;">
-            <div>
-              <div style="margin-bottom:5px;">
-                <span class="pill ${d.tipo === 'suscripcion' ? 'cop' : 'warn'}">${d.tipo === 'suscripcion' ? 'Suscripción' : 'Deuda'}</span>
-                ${!d.activa ? '<span class="pill tipo">Inactiva</span>' : ''}
-              </div>
-              <strong>${escapeHtml(d.nombre)}</strong>
+        <div class="debt-item">
+          <div class="debt-item-top" data-abrir="${d.id}">
+            <div class="debt-icon" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${icon}</div>
+            <div class="debt-item-body">
+              <div class="debt-item-name">${escapeHtml(d.nombre)} <span class="pill warn">Deuda</span></div>
+              <div class="debt-item-sub">Próximo pago: ${d.diaPago} de cada mes</div>
             </div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn icon small secondary" data-edit="${d.id}">${ICON_EDIT}</button>
-              <button class="btn icon small danger" data-del="${d.id}">${ICON_TRASH}</button>
+            <div class="debt-item-right">
+              <div class="debt-item-amount">${formatMoney(d.monto, d.moneda)}<span class="text-dim" style="font-size:10.5px;font-weight:400;">/mes</span></div>
             </div>
           </div>
-          <div class="balance" style="font-size:20px;">${formatMoney(d.monto, d.moneda)} <span class="text-dim" style="font-size:12px;font-weight:400;">/ mes ${d.tipoPago === 'variable' ? '(aprox.)' : ''}</span></div>
           ${tieneTotal ? `
             <div class="progress-bar"><div style="width:${pct}%;"></div></div>
-            <div class="stat-sub">Pagado: ${formatMoney(d.montoPagado || 0, d.moneda)} / ${formatMoney(d.montoTotal, d.moneda)}</div>
-            <div class="stat-sub">Pendiente: <strong>${formatMoney(pendiente, d.moneda)}</strong></div>
-          ` : `
-            <div class="stat-sub">Total acumulado pagado: <strong>${formatMoney(d.montoPagado || 0, d.moneda)}</strong></div>
-          `}
-          <div class="stat-sub">Día de pago: ${d.diaPago} de cada mes</div>
-          ${d.activa ? `<div class="stat-sub">${dias >= 0 ? `Próximo pago en ${dias} día(s)` : 'Vencido'} ${enAlerta && !pagadoEsteCiclo ? '🔔' : ''}</div>` : ''}
-          ${ultimoPago ? `<div class="stat-sub">Último pago: ${formatDate(ultimoPago.fecha)} · ${formatMoney(ultimoPago.monto, d.moneda)}</div>` : ''}
-          ${d.notas ? `<div class="stat-sub">${escapeHtml(d.notas)}</div>` : ''}
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-            ${d.activa ? (pagadoEsteCiclo
-              ? `<button class="${pagoBtnClass}" disabled>Ya pagado este mes</button>`
-              : `<button class="${pagoBtnClass}" data-pagar="${d.id}">Marcar pago de este mes</button>`
-            ) : ''}
-            <button class="btn small secondary" data-miembros="${d.id}">👥 Miembros (${this.miembrosDe(d.id).length})${this.miembrosConDeuda(d).length ? ` · ${this.miembrosConDeuda(d).length} debe(n)` : ''}</button>
+            <div class="debt-item-progress-row">
+              <span>Pagado: <strong style="color:var(--accent);">${formatMoney(d.montoPagado || 0, d.moneda)}</strong></span>
+              <span>Pendiente: <strong style="color:var(--danger);">${formatMoney(pendiente, d.moneda)}</strong></span>
+            </div>
+          ` : ''}
+          <div class="debt-item-actions">
+            <button class="btn secondary small" data-abrir="${d.id}">Ver detalle</button>
+            ${d.activa ? `<button class="btn ${pagadoEsteCiclo ? 'secondary' : ''} small" ${pagadoEsteCiclo ? 'disabled' : ''} data-pagar="${d.id}">${pagadoEsteCiclo ? 'Ya pagado' : 'Pagar ahora →'}</button>` : ''}
           </div>
         </div>`;
     };
 
     container.innerHTML = `
-      <div class="grid cols-1" style="margin-bottom:20px;">
-        <div class="card">
-          <p class="card-title">Total mensual (activas)</p>
-          <div class="stat-value">${formatMoney(totalMensual, 'COP')}</div>
-          <div class="stat-sub">Convertido a moneda base</div>
+      <div class="hero-card">
+        <div class="hero-glow"></div>
+        <div class="hero-label">Total mensual (activas)</div>
+        <div class="hero-value" data-count="${totalMensual}" data-count-currency="COP">${formatMoney(0, 'COP')}</div>
+        <div class="hero-trend pos" style="color:var(--text-dim);">${activas.length} activo(s) este mes</div>
+        <div class="detail-header-badge" style="position:absolute;top:20px;right:20px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7H5a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2v-7a2 2 0 00-2-2z"/><path d="M16 5H5a2 2 0 000 4h13"/><circle cx="17" cy="14" r="1.5"/></svg>
         </div>
       </div>
-      <div class="section-header">
-        <div class="text-dim">${deudas.length} deuda(s)/suscripción(es)</div>
-        <button class="btn" id="add-deuda">+ Nueva</button>
+
+      <div class="chip-tabs">
+        <button class="chip-tab ${this.filtro === 'todos' ? 'active' : ''}" data-filtro="todos">Todas</button>
+        <button class="chip-tab ${this.filtro === 'suscripcion' ? 'active' : ''}" data-filtro="suscripcion">Suscripciones</button>
+        <button class="chip-tab ${this.filtro === 'deuda' ? 'active' : ''}" data-filtro="deuda">Deudas</button>
       </div>
-      <div class="grid cols-1">${deudas.map(cardHtml).join('')}</div>
+
+      ${this.filtro !== 'deuda' ? `
+        <div class="section-header">
+          <span class="section-title">Suscripciones activas</span>
+          <button class="link-btn" id="add-suscripcion">Agregar +</button>
+        </div>
+        <div class="debt-list">${suscripciones.length ? suscripciones.map(filaSuscripcion).join('') : '<div class="empty-state card">Sin suscripciones.</div>'}</div>
+      ` : ''}
+
+      ${this.filtro !== 'suscripcion' ? `
+        <div class="section-header">
+          <span class="section-title">Deudas</span>
+          <button class="link-btn" id="add-deuda">Agregar deuda +</button>
+        </div>
+        <div class="debt-list">${deudas.length ? deudas.map(filaDeuda).join('') : '<div class="empty-state card">Sin deudas.</div>'}</div>
+      ` : ''}
     `;
 
-    container.querySelector('#add-deuda').onclick = () => this.openForm();
-    container.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => this.openForm(b.dataset.edit));
-    container.querySelectorAll('[data-pagar]').forEach(b => b.onclick = () => this.marcarPago(b.dataset.pagar));
-    container.querySelectorAll('[data-miembros]').forEach(b => b.onclick = () => this.openMiembros(b.dataset.miembros));
-    container.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    container.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => { this.filtro = b.dataset.filtro; this.render(); });
+    const addSus = container.querySelector('#add-suscripcion');
+    if (addSus) addSus.onclick = () => this.openForm(null, 'suscripcion');
+    const addDeuda = container.querySelector('#add-deuda');
+    if (addDeuda) addDeuda.onclick = () => this.openForm(null, 'deuda');
+    container.querySelectorAll('[data-abrir]').forEach(el => el.onclick = (e) => {
+      e.stopPropagation();
+      this.detalleId = el.dataset.abrir;
+      this.render();
+    });
+    container.querySelectorAll('[data-pagar]').forEach(b => b.onclick = (e) => {
+      e.stopPropagation();
+      this.marcarPago(b.dataset.pagar);
+    });
+
+    animateCounters(container);
+  },
+
+  renderDetalle(id) {
+    const container = document.getElementById('view-deudas');
+    const d = Storage.find('deudas', id);
+    const { icon, color } = this.iconoDeuda(d);
+    const estado = this.estadoDeuda(d);
+    const prox = this.proximoPago(d.diaPago);
+    const pagadoEsteCiclo = this.pagadoEsteCiclo(d);
+    const historial = (d.historialPagos || []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+    const ultimoPago = historial[0];
+    const miembros = this.miembrosDe(d.id);
+    const activosCount = miembros.filter(m => m.activo).length;
+    const tieneTotal = d.montoTotal && d.montoTotal > 0;
+    const pendiente = tieneTotal ? Math.max(0, d.montoTotal - (d.montoPagado || 0)) : null;
+    const pct = tieneTotal ? Math.min(100, Math.round(((d.montoPagado || 0) / d.montoTotal) * 100)) : 0;
+
+    const avatarColors = ['var(--accent)', 'var(--accent-2)', 'var(--warning)', 'var(--danger)'];
+    const filaMiembroMini = (m, i) => {
+      const pagado = this.pagadoEsteCicloMiembro(m, d);
+      return `
+        <div class="member-row">
+          <div class="member-avatar" style="background:${avatarColors[i % avatarColors.length]};">${this.initials(m.nombre)}</div>
+          <div class="member-body">
+            <div class="member-name">${escapeHtml(m.nombre)}</div>
+            <div class="member-role">Miembro</div>
+          </div>
+          <span class="pill ${!m.activo ? 'tipo' : (pagado ? 'pos' : 'warn')}">${!m.activo ? 'Inactivo' : (pagado ? 'Activo' : 'Pendiente de pago')}</span>
+        </div>`;
+    };
+
+    container.innerHTML = `
+      <div class="detail-topbar">
+        <button class="icon-btn" id="detalle-back" aria-label="Volver">${ICON_BACK}</button>
+        <span class="detail-topbar-title">Detalle de ${d.tipo === 'suscripcion' ? 'suscripción' : 'deuda'}</span>
+        <button class="icon-btn" id="detalle-editar" aria-label="Editar">${ICON_EDIT}</button>
+      </div>
+
+      <div class="detail-header-card">
+        <div class="detail-header-icon" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="detail-header-name">${escapeHtml(d.nombre)}</div>
+          <span class="pill" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${d.tipo === 'suscripcion' ? (CATEGORIAS_SUSCRIPCION[d.categoria]?.label || 'Otros') : 'Deuda'}</span>
+          <div class="detail-header-price">${formatMoney(d.monto, d.moneda)}<span class="text-dim" style="font-size:12px;font-weight:400;">/mes</span></div>
+          <span class="pill ${estado.cls}">${estado.label}</span>
+        </div>
+        <div class="detail-header-badge">${ICON_CALENDAR}</div>
+      </div>
+
+      ${tieneTotal ? `
+        <div class="card" style="margin-bottom:16px;">
+          <p class="card-title">Progreso de pago</p>
+          <div class="progress-bar"><div style="width:${pct}%;"></div></div>
+          <div class="debt-item-progress-row">
+            <span>Pagado: <strong style="color:var(--accent);">${formatMoney(d.montoPagado || 0, d.moneda)}</strong></span>
+            <span>Pendiente: <strong style="color:var(--danger);">${formatMoney(pendiente, d.moneda)}</strong></span>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="card" style="margin-bottom:16px;">
+        <p class="card-title">Resumen</p>
+        <div class="detail-row">
+          <span class="detail-row-label">${ICON_CALENDAR} Próximo pago</span>
+          <span class="detail-row-value">${d.diaPago} de cada mes</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">${ICON_CLOCK} Último pago</span>
+          <span class="detail-row-value">${ultimoPago ? formatDate(ultimoPago.fecha) : '—'}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">${ICON_STATUS} Estado</span>
+          <span class="pill ${d.activa ? 'pos' : 'tipo'}">${d.activa ? 'Activa' : 'Inactiva'}</span>
+        </div>
+        ${d.tipo === 'suscripcion' ? `
+        <div class="detail-row">
+          <span class="detail-row-label">${ICON_USERS} Miembros</span>
+          <span class="detail-row-value">${activosCount} de ${miembros.length} miembros</span>
+        </div>` : ''}
+      </div>
+
+      ${d.tipo === 'suscripcion' ? `
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-header" style="margin-bottom:6px;">
+            <span class="section-title">Miembros</span>
+            <button class="link-btn" id="detalle-gestionar">Gestionar ${ICON_CHEVRON}</button>
+          </div>
+          ${miembros.length ? miembros.map(filaMiembroMini).join('') : '<div class="empty-state">Aún no has agregado miembros.</div>'}
+        </div>
+      ` : ''}
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="section-header" style="margin-bottom:6px;">
+          <span class="section-title">Historial de pagos</span>
+          ${historial.length > 3 ? `<button class="link-btn" id="detalle-historial">Ver todo ${ICON_CHEVRON}</button>` : ''}
+        </div>
+        ${historial.length ? historial.slice(0, 3).map(p => `
+          <div class="history-row">
+            <div class="history-icon">${ICON_CALENDAR}</div>
+            <div class="history-body">${formatDate(p.fecha)}<div class="history-sub">Pago manual</div></div>
+            <span class="pill pos">${formatMoney(p.monto, d.moneda)}</span>
+          </div>
+        `).join('') : '<div class="empty-state">Sin pagos registrados.</div>'}
+      </div>
+
+      ${d.notas ? `
+        <div class="card" style="margin-bottom:16px;">
+          <p class="card-title">Notas</p>
+          <div class="detail-row" style="border:none;padding:0;">
+            <span class="detail-row-label" style="align-items:flex-start;">${ICON_NOTE}</span>
+            <span class="detail-row-value" style="text-align:left;font-weight:400;color:var(--text-dim);">${escapeHtml(d.notas)}</span>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="detail-actions">
+        ${d.tipo === 'suscripcion' ? `<button class="btn secondary" id="detalle-ver-miembros">${ICON_USERS} Ver miembros</button>` : `<button class="btn secondary" id="detalle-borrar">${ICON_TRASH} Eliminar</button>`}
+        ${d.activa ? `<button class="btn ${pagadoEsteCiclo ? 'secondary' : ''}" ${pagadoEsteCiclo ? 'disabled' : ''} id="detalle-pagar">${ICON_CHECK} ${pagadoEsteCiclo ? 'Ya pagado este mes' : 'Marcar como pagado'}</button>` : ''}
+      </div>
+    `;
+
+    container.querySelector('#detalle-back').onclick = () => { this.detalleId = null; this.render(); };
+    container.querySelector('#detalle-editar').onclick = () => this.openForm(d.id);
+    const gestionarBtn = container.querySelector('#detalle-gestionar');
+    if (gestionarBtn) gestionarBtn.onclick = () => this.openMiembros(d.id);
+    const verMiembrosBtn = container.querySelector('#detalle-ver-miembros');
+    if (verMiembrosBtn) verMiembrosBtn.onclick = () => this.openMiembros(d.id);
+    const borrarBtn = container.querySelector('#detalle-borrar');
+    if (borrarBtn) borrarBtn.onclick = () => {
       UI.confirmAction('¿Eliminar esta deuda/suscripción?', () => {
-        Storage.remove('deudas', b.dataset.del);
+        Storage.remove('deudas', d.id);
+        this.detalleId = null;
         this.render();
         UI.toast('Eliminada');
       });
-    });
+    };
+    const historialBtn = container.querySelector('#detalle-historial');
+    if (historialBtn) historialBtn.onclick = () => this.openHistorial(d.id);
+    const pagarBtn = container.querySelector('#detalle-pagar');
+    if (pagarBtn) pagarBtn.onclick = () => this.marcarPago(d.id);
 
-    App.updateNotifDot();
+    animateCounters(container);
+  },
+
+  openHistorial(id) {
+    const d = Storage.find('deudas', id);
+    const historial = (d.historialPagos || []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+    UI.openModal(`Historial de pagos — ${escapeHtml(d.nombre)}`, `
+      ${historial.length ? historial.map(p => `
+        <div class="history-row">
+          <div class="history-icon">${ICON_CALENDAR}</div>
+          <div class="history-body">${formatDate(p.fecha)}<div class="history-sub">Pago manual</div></div>
+          <span class="pill pos">${formatMoney(p.monto, d.moneda)}</span>
+        </div>
+      `).join('') : '<div class="empty-state">Sin pagos registrados.</div>'}
+      <div class="modal-actions">
+        <button type="button" class="btn" id="cerrar-historial">Cerrar</button>
+      </div>
+    `, {
+      onMount: (root) => { root.querySelector('#cerrar-historial').onclick = () => UI.closeModal(); }
+    });
   },
 
   proximoPago(diaPago) {
@@ -506,8 +733,9 @@ const DeudasView = {
     });
   },
 
-  openForm(id) {
+  openForm(id, tipoDefault) {
     const deuda = id ? Storage.find('deudas', id) : null;
+    const tipoInicial = deuda?.tipo || tipoDefault || 'suscripcion';
     UI.openModal(deuda ? 'Editar deuda/suscripción' : 'Nueva deuda/suscripción', `
       <form id="deuda-form">
         <div class="form-row">
@@ -520,12 +748,16 @@ const DeudasView = {
             ${UI.selectHTML('tipo', [
               { value: 'suscripcion', label: 'Suscripción' },
               { value: 'deuda', label: 'Deuda' }
-            ], deuda?.tipo || 'suscripcion')}
+            ], tipoInicial, { id: 'deuda-tipo' })}
           </div>
           <div>
             <label>Moneda</label>
             ${UI.selectHTML('moneda', [{ value: 'COP', label: 'COP' }, { value: 'USD', label: 'USD' }], deuda?.moneda || 'COP')}
           </div>
+        </div>
+        <div class="form-row" id="categoria-row" style="display:${tipoInicial === 'suscripcion' ? '' : 'none'};">
+          <label>Categoría</label>
+          ${UI.selectHTML('categoria', Object.entries(CATEGORIAS_SUSCRIPCION).map(([value, c]) => ({ value, label: c.label })), deuda?.categoria || 'otros')}
         </div>
         <div class="form-row">
           <label>¿Cómo se paga cada mes?</label>
@@ -576,6 +808,12 @@ const DeudasView = {
         tipoPagoHidden.addEventListener('change', updateMontoLabel);
         updateMontoLabel();
 
+        const tipoHidden = root.querySelector('#deuda-tipo');
+        const categoriaRow = root.querySelector('#categoria-row');
+        tipoHidden.addEventListener('change', () => {
+          categoriaRow.style.display = tipoHidden.value === 'suscripcion' ? '' : 'none';
+        });
+
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#deuda-form').onsubmit = (e) => {
           e.preventDefault();
@@ -584,6 +822,7 @@ const DeudasView = {
           const data = {
             nombre: fd.get('nombre').trim(),
             tipo: fd.get('tipo'),
+            categoria: fd.get('tipo') === 'suscripcion' ? fd.get('categoria') : null,
             moneda: fd.get('moneda'),
             monto: parseFloat(fd.get('monto')),
             tipoPago: fd.get('tipoPago'),

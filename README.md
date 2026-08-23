@@ -1,11 +1,14 @@
 # PanelDeFinanzas (FinBot)
 
 Panel de finanzas personales — cuentas en COP/USD, transacciones, metas de
-ahorro, préstamos, y deudas/suscripciones (con miembros compartidos y
-recordatorios). El frontend es HTML/CSS/JS sin build, y habla con un backend
-propio (Node/Express + PostgreSQL) que guarda los datos en la nube, así que
-puedes entrar desde cualquier dispositivo con tu cuenta de Google. También es
-instalable como app (PWA) gracias a `manifest.json` + `sw.js`.
+ahorro, préstamos, deudas y suscripciones (con miembros que comparten el
+gasto y recordatorios), tarjetas de crédito (fecha de corte, compras a
+cuotas y cuota de manejo configurable), e historial mensual de
+ingresos/gastos por categoría. El frontend es HTML/CSS/JS sin build, y habla
+con un backend propio (Node/Express + PostgreSQL) que guarda los datos en la
+nube, así que puedes entrar desde cualquier dispositivo con tu cuenta de
+Google. También es instalable como app (PWA) gracias a `manifest.json` +
+`sw.js`.
 
 ## Requisitos
 
@@ -28,8 +31,9 @@ npm start
 ```
 
 Queda escuchando en `http://localhost:4000`. Al arrancar corre solo, una
-migración idempotente que agrega cualquier columna nueva que falte en la base
-de datos (no hay un framework de migraciones aparte — ver `backend/db.js`).
+migración idempotente que crea las tablas/columnas nuevas que falten en la
+base de datos (no hay un framework de migraciones aparte — ver
+`backend/db.js`).
 
 **2. Frontend** — desde la raíz del proyecto, en otra terminal:
 
@@ -58,8 +62,10 @@ Abre en el navegador: **http://localhost:3000**
 ## Configurar el login con Gmail
 
 El login usa [Google Identity Services](https://developers.google.com/identity/gsi/web)
-en el navegador; el backend valida ese token y emite su propia sesión (JWT,
-30 días) para que no dependas de que el token de Google siga vivo.
+en el navegador; el backend valida ese token **una sola vez** contra Google y
+a cambio emite su propia sesión (JWT firmado con `SESSION_SECRET`, válida 30
+días) — así la app no depende de que el token de Google (que dura ~1 hora)
+siga vivo, y no hace falta volver a iniciar sesión todo el tiempo.
 
 1. Ve a [Google Cloud Console → Credenciales](https://console.cloud.google.com/apis/credentials).
 2. Crea un **ID de cliente de OAuth** tipo **Aplicación web**.
@@ -77,28 +83,40 @@ El archivo de credenciales que descarga Google (`client_secret_*.json`) **no
 se sube a GitHub** (está en `.gitignore`) — solo se usan los Client ID
 públicos, nunca ese archivo.
 
-## Desplegar a producción
+## Desplegar a producción (CI/CD)
 
-No hay CI/CD configurado: un `git push` a este repo **no actualiza** el
-servidor de producción por sí solo. Para que un cambio llegue hay que, en el
-servidor:
+Cada `git push` a `main` dispara [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml),
+que despliega automáticamente sin pasos manuales:
 
-1. `git pull origin main`
-2. Reiniciar el proceso del backend (para que tome las rutas nuevas y corra
-   la migración automática de `db.migrate()`).
-3. Si nginx u otro servidor sirve el frontend desde una copia separada del
-   repo (no directamente desde esta carpeta), confirmar que esa copia
-   también se actualizó.
+1. **`test`** — revisa la sintaxis de todos los `.js` del repo (`node --check`).
+   Si algo no compila, el despliegue se cancela ahí y producción no se toca.
+2. **`deploy`** — se conecta por SSH al servidor, actualiza el código
+   (`git fetch` + `git reset --hard origin/main`, lo que también deja el
+   frontend estático al día porque nginx lo sirve directo de esa misma
+   carpeta), construye una imagen Docker nueva del backend y la levanta en un
+   puerto aparte (`4001`) para probarla en caliente contra `/health` antes de
+   tocar nada. Solo si responde sana, la pone en el puerto real (`4000`) y
+   reemplaza el contenedor anterior — si falla, producción queda intacta y el
+   contenedor viejo sigue corriendo.
 
-`backend/Dockerfile` está disponible si prefieres desplegar el backend como
-contenedor.
+Requiere estos secretos configurados en el repo de GitHub (Settings →
+Secrets → Actions): `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`. El servidor
+necesita Docker instalado y `~/finbot` con un checkout de este repo y su
+propio `backend/.env` (no versionado — se crea a mano una vez ahí).
+
+`backend/Dockerfile` es la imagen que usa ese pipeline; también sirve para
+correr el backend en contenedor en cualquier otro lado.
 
 ## Instalar como app (PWA)
 
 El sitio declara `manifest.json` y registra un service worker (`sw.js`), así
 que Chrome/Edge en Android y desktop ofrecen "Instalar app" (icono en la
-barra de direcciones, o "Agregar a pantalla de inicio" en el celular). Esto
-solo funciona servido por HTTPS en producción (o en `localhost` para
+barra de direcciones, o "Agregar a pantalla de inicio" en el celular). El
+service worker usa estrategia *network-first* para el shell estático (HTML/
+CSS/JS): siempre intenta traer la versión más nueva y solo cae al caché si no
+hay red, para que un despliegue nuevo no quede "pegado" en una copia vieja.
+Nunca cachea `/api/*` — los datos financieros siempre vienen del servidor.
+Esto solo funciona servido por HTTPS en producción (o en `localhost` para
 pruebas) — el service worker no se registra por HTTP plano.
 
 ## Estructura
@@ -110,22 +128,34 @@ sw.js                 # service worker: cachea el shell estático, nunca /api/*
 css/style.css
 assets/               # íconos de la app
 js/
-  storage.js          # capa que habla con el backend (fetch a /api/*)
-  utils.js            # formato de moneda, fechas, iconos SVG compartidos, etc.
+  storage.js          # capa que habla con el backend (fetch a /api/*), caché en memoria
+  utils.js            # formato de moneda/fechas, iconos SVG e íconos de categoría compartidos
   ui.js               # modales, toasts, selects e inputs de dinero reutilizables
   auth.js             # login con Google + sesión propia (JWT del backend)
   exchangeRate.js      # tasa de cambio USD/COP automática
-  app.js              # navegación, skeletons de carga y arranque
-  views/              # una vista por módulo (dashboard, cuentas, transacciones,
-                       # metas, préstamos, deudas, ajustes)
+  app.js              # navegación, notificaciones, skeletons de carga y arranque
+  views/
+    dashboard.js      # resumen: patrimonio, cuentas, movimientos recientes, próximos pagos
+    cuentas.js         # cuentas multi-moneda (efectivo, banco, inversión, terceros)
+    transacciones.js  # historial con filtros por cuenta/tipo/categoría y agrupación por fecha
+    metas.js           # metas de ahorro
+    prestamos.js       # préstamos dados/recibidos
+    deudas.js          # deudas y suscripciones (incluye miembros que comparten el pago)
+    tarjetas.js        # tarjetas de crédito: corte, compras a cuotas, cuota de manejo
+    historial.js       # historial mensual de ingresos/gastos por categoría
+    ajustes.js         # configuración general
 backend/
   server.js           # arranque de Express + montaje de rutas
   db.js               # pool de Postgres + migraciones idempotentes al arrancar
-  middleware/auth.js  # valida el JWT de sesión en cada request
-  routes/             # un router por recurso (cuentas, transacciones, deudas, etc.)
+  middleware/auth.js  # valida el JWT de sesión propio en cada request
+  routes/
+    auth.js           # intercambia el token de Google por la sesión propia (JWT 30 días)
+    cuentas.js
+    transacciones.js
+    metas.js
+    prestamos.js
+    deudas.js          # incluye /deudas/:id/pago y los endpoints de miembros
+    miembros.js        # miembros de una suscripción compartida y sus pagos
+    tarjetas.js        # tarjetas, compras a cuotas y pago del extracto mensual
+    config.js          # preferencias generales (tasa de cambio, etc.)
 ```
-
-## Próximos pasos
-
-- Configurar un despliegue automático (CI/CD) para que `git push` a `main`
-  actualice producción sin pasos manuales.

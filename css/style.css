@@ -788,7 +788,7 @@ tr:last-child td { border-bottom: none; }
 .cat-bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--bg-panel-2); max-width: 100%; }
 .cat-bar-seg.green { background: var(--accent); }
 .cat-bar-seg.red { background: var(--danger); }
-.cat-bar-labels { display: flex; margin-top: 5px; max-width: 100%; }
+.cat-bar-labels { display: flex; gap: 10px; margin-top: 5px; max-width: 100%; }
 .cat-bar-labels .lbl { font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: visible; }
 .cat-bar-labels .lbl.green { color: var(--accent); }
 .cat-bar-labels .lbl.red { color: var(--danger); }

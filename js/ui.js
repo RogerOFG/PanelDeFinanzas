@@ -21,6 +21,16 @@ const UI = {
     document.getElementById('modal-root').innerHTML = '';
   },
 
+  // Bloquea envíos duplicados de un formulario: deshabilita el botón submit
+  // en la primera llamada y devuelve false en cualquier llamada repetida
+  // (doble clic, doble Enter) mientras el botón siga deshabilitado.
+  guardSubmit(e) {
+    const btn = e.target.querySelector('[type=submit]');
+    if (btn && btn.disabled) return false;
+    if (btn) btn.disabled = true;
+    return true;
+  },
+
   toast(message, type = 'info') {
     const root = document.getElementById('toast-root');
     const el = document.createElement('div');

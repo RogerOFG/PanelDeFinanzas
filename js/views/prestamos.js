@@ -144,6 +144,7 @@ const PrestamosView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#prestamo-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
           const montoPagado = parseFloat(fd.get('montoPagado')) || 0;
@@ -190,6 +191,7 @@ const PrestamosView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = Math.min(parseFloat(fd.get('monto')), pendiente);
           const nuevoPagado = prestamo.montoPagado + monto;

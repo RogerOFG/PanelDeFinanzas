@@ -308,6 +308,7 @@ const TarjetasView = {
         }
         root.querySelector('#tarjeta-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const data = {
             nombre: fd.get('nombre'),
@@ -370,6 +371,7 @@ const TarjetasView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#compra-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const compra = {
             descripcion: fd.get('descripcion'),
@@ -426,6 +428,7 @@ const TarjetasView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-tarjeta-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const cuentaId = fd.get('cuentaId');
           const fecha = fd.get('fecha') || todayISO();

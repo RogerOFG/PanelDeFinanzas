@@ -448,6 +448,7 @@ const DeudasView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-deuda-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
           const soloRegistro = fd.get('soloRegistro') === 'on';
@@ -523,13 +524,6 @@ const DeudasView = {
 
   totalPagadoMiembro(miembro) {
     return (miembro.pagos || []).reduce((s, p) => s + p.monto, 0);
-  },
-
-  miembrosConDeuda(deuda) {
-    return this.miembrosDe(deuda.id).filter(m => m.activo).filter(m => {
-      const ciclos = this.ciclosTranscurridosMiembro(m, deuda);
-      return this.totalPagadoMiembro(m) - (ciclos * m.montoMensual) < 0;
-    });
   },
 
   // Cuántos ciclos de cobro (meses) han empezado desde que se agregó el miembro,
@@ -647,6 +641,7 @@ const DeudasView = {
         root.querySelector('#cancel-btn').onclick = () => { UI.closeModal(); DeudasView.openMiembros(deudaId); };
         root.querySelector('#miembro-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const data = {
             deudaId,
@@ -719,6 +714,7 @@ const DeudasView = {
 
         root.querySelector('#pago-miembro-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
           const soloRegistro = fd.get('soloRegistro') === 'on';
@@ -839,6 +835,7 @@ const DeudasView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#deuda-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const montoTotal = parseFloat(fd.get('montoTotal'));
           const data = {

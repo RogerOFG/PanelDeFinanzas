@@ -246,6 +246,7 @@ const TransaccionesView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#tx-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const tipo = fd.get('tipo');
           const cuentaId = fd.get('cuentaId');

@@ -126,6 +126,7 @@ const MetasView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#meta-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const montoObjetivo = parseFloat(fd.get('montoObjetivo'));
           const montoActual = parseFloat(fd.get('montoActual')) || 0;
@@ -168,6 +169,7 @@ const MetasView = {
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#aporte-form').onsubmit = (e) => {
           e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
           const nuevoMonto = meta.montoActual + monto;

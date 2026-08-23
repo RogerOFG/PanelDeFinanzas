@@ -1,8 +1,5 @@
-const ICON_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M7 12h10M10 19h4"/></svg>';
-
 const HistorialView = {
   filtro: 'todos',
-  filtroCuenta: '',
 
   renderSkeleton() {
     const container = document.getElementById('view-historial');
@@ -21,12 +18,10 @@ const HistorialView = {
     return texto[0].toUpperCase() + texto.slice(1);
   },
 
-  // Agrupa las transacciones (ya filtradas por cuenta si aplica) por mes (YYYY-MM),
-  // calculando totales y el ranking de categorías con más monto dentro de cada mes.
+  // Agrupa todas las transacciones por mes (YYYY-MM), calculando totales y
+  // el ranking de categorías con más monto dentro de cada mes.
   agruparPorMes() {
-    let transacciones = Storage.get('transacciones');
-    if (this.filtroCuenta) transacciones = transacciones.filter(t => String(t.cuentaId) === String(this.filtroCuenta));
-
+    const transacciones = Storage.get('transacciones');
     const meses = {};
     transacciones.forEach(t => {
       const ym = t.fecha.slice(0, 7);
@@ -50,8 +45,7 @@ const HistorialView = {
   },
 
   topCategorias(m) {
-    let cats = Object.values(m.categorias);
-    if (this.filtro !== 'todos') cats = cats.filter(c => c.tipo === this.filtro);
+    const cats = Object.values(m.categorias);
     const total = cats.reduce((s, c) => s + c.total, 0);
     return cats
       .sort((a, b) => b.total - a.total)
@@ -61,20 +55,26 @@ const HistorialView = {
 
   render() {
     const container = document.getElementById('view-historial');
-    const meses = this.agruparPorMes();
+    const todos = this.agruparPorMes();
     const mesActual = todayISO().slice(0, 7);
+
+    const meses = todos.filter(m => {
+      const balance = m.ingresos - m.gastos;
+      if (this.filtro === 'ganancia') return balance >= 0;
+      if (this.filtro === 'perdida') return balance < 0;
+      return true;
+    });
 
     const filtrosHtml = `
       <div class="chip-tabs">
         <button class="chip-tab ${this.filtro === 'todos' ? 'active' : ''}" data-filtro="todos">Todos</button>
-        <button class="chip-tab ${this.filtro === 'ingreso' ? 'active' : ''}" data-filtro="ingreso">Ingresos</button>
-        <button class="chip-tab ${this.filtro === 'gasto' ? 'active' : ''}" data-filtro="gasto">Gastos</button>
-        <button class="chip-tab" id="btn-filtrar-historial" style="margin-left:auto;">${ICON_FILTER} Filtrar</button>
+        <button class="chip-tab ${this.filtro === 'ganancia' ? 'active' : ''}" data-filtro="ganancia">Ganancias</button>
+        <button class="chip-tab ${this.filtro === 'perdida' ? 'active' : ''}" data-filtro="perdida">Pérdidas</button>
       </div>
     `;
 
     if (meses.length === 0) {
-      container.innerHTML = `${filtrosHtml}<div class="empty-state card">Sin movimientos con este filtro.</div>`;
+      container.innerHTML = `${filtrosHtml}<div class="empty-state card">Sin meses con este filtro.</div>`;
       this.wireFiltros(container);
       return;
     }
@@ -127,31 +127,6 @@ const HistorialView = {
 
   wireFiltros(container) {
     container.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => { this.filtro = b.dataset.filtro; this.render(); });
-    container.querySelector('#btn-filtrar-historial').onclick = () => this.openFiltroCuenta();
-  },
-
-  openFiltroCuenta() {
-    const cuentas = Storage.get('cuentas');
-    UI.openModal('Filtrar historial', `
-      <div class="form-row">
-        <label>Cuenta</label>
-        ${UI.selectHTML('cuenta', [{ value: '', label: 'Todas las cuentas' }, ...cuentas.map(c => ({ value: c.id, label: c.nombre }))], this.filtroCuenta, { id: 'hist-cuenta' })}
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
-        <button type="button" class="btn" id="aplicar-btn">Aplicar</button>
-      </div>
-    `, {
-      onMount: (root) => {
-        UI.initSelects(root);
-        root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
-        root.querySelector('#aplicar-btn').onclick = () => {
-          this.filtroCuenta = root.querySelector('input[name="cuenta"]').value;
-          UI.closeModal();
-          this.render();
-        };
-      }
-    });
   },
 
   abrirDetalle(ym, meses) {

@@ -21,6 +21,7 @@ const SHELL_ASSETS = [
   '/js/views/prestamos.js',
   '/js/views/deudas.js',
   '/js/views/tarjetas.js',
+  '/js/views/historial.js',
   '/js/views/ajustes.js',
   '/assets/icon-192.png',
   '/assets/icon-512.png'

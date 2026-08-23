@@ -3,7 +3,7 @@ const pool = require('../db');
 const router = express.Router();
 
 const SELECT_FIELDS = `id, nombre, cupo, moneda, dia_corte AS "diaCorte",
-  cuota_manejo AS "cuotaManejo", activa, notas`;
+  cuota_manejo AS "cuotaManejo", cuota_manejo_modo AS "cuotaManejoModo", activa, notas`;
 
 const COMPRA_FIELDS = `id, tarjeta_id AS "tarjetaId", descripcion, monto_total AS "montoTotal",
   cuotas, cuotas_pagadas AS "cuotasPagadas", tiene_intereses AS "tieneIntereses",
@@ -31,21 +31,21 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { nombre, cupo, moneda, diaCorte, cuotaManejo, activa, notas } = req.body;
+  const { nombre, cupo, moneda, diaCorte, cuotaManejo, cuotaManejoModo, activa, notas } = req.body;
   const { rows } = await pool.query(
-    `INSERT INTO tarjetas_credito (usuario_id, nombre, cupo, moneda, dia_corte, cuota_manejo, activa, notas)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING ${SELECT_FIELDS};`,
-    [req.usuario.id, nombre, cupo || null, moneda || 'COP', diaCorte, cuotaManejo || 0, activa !== false, notas || null]
+    `INSERT INTO tarjetas_credito (usuario_id, nombre, cupo, moneda, dia_corte, cuota_manejo, cuota_manejo_modo, activa, notas)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${SELECT_FIELDS};`,
+    [req.usuario.id, nombre, cupo || null, moneda || 'COP', diaCorte, cuotaManejo || 0, cuotaManejoModo || 'siempre', activa !== false, notas || null]
   );
   res.status(201).json({ ...rows[0], compras: [], historialPagos: [] });
 });
 
 router.put('/:id', async (req, res) => {
-  const { nombre, cupo, moneda, diaCorte, cuotaManejo, activa, notas } = req.body;
+  const { nombre, cupo, moneda, diaCorte, cuotaManejo, cuotaManejoModo, activa, notas } = req.body;
   const { rows } = await pool.query(
-    `UPDATE tarjetas_credito SET nombre=$1, cupo=$2, moneda=$3, dia_corte=$4, cuota_manejo=$5, activa=$6, notas=$7
-     WHERE id=$8 AND usuario_id=$9 RETURNING ${SELECT_FIELDS};`,
-    [nombre, cupo || null, moneda || 'COP', diaCorte, cuotaManejo || 0, activa !== false, notas || null, req.params.id, req.usuario.id]
+    `UPDATE tarjetas_credito SET nombre=$1, cupo=$2, moneda=$3, dia_corte=$4, cuota_manejo=$5, cuota_manejo_modo=$6, activa=$7, notas=$8
+     WHERE id=$9 AND usuario_id=$10 RETURNING ${SELECT_FIELDS};`,
+    [nombre, cupo || null, moneda || 'COP', diaCorte, cuotaManejo || 0, cuotaManejoModo || 'siempre', activa !== false, notas || null, req.params.id, req.usuario.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Tarjeta no encontrada' });
   res.json(await conDetalle(rows[0]));
@@ -103,7 +103,10 @@ router.post('/:id/pago', async (req, res) => {
       [req.params.id]
     );
 
-    const cuotaManejo = parseFloat(tarjeta.rows[0].cuota_manejo) || 0;
+    const huboUso = pendientes.rows.length > 0;
+    const modo = tarjeta.rows[0].cuota_manejo_modo || 'siempre';
+    const cobraManejo = modo === 'siempre' || (modo === 'solo_si_usa' && huboUso);
+    const cuotaManejo = cobraManejo ? (parseFloat(tarjeta.rows[0].cuota_manejo) || 0) : 0;
     let total = cuotaManejo;
     for (const c of pendientes.rows) {
       total += parseFloat(c.monto_total) / c.cuotas;

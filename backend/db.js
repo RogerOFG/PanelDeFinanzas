@@ -58,6 +58,7 @@ async function migrate() {
       fecha DATE NOT NULL DEFAULT CURRENT_DATE
     );
   `);
+  await pool.query(`ALTER TABLE tarjetas_credito ADD COLUMN IF NOT EXISTS cuota_manejo_modo TEXT NOT NULL DEFAULT 'siempre';`);
 }
 
 module.exports = pool;

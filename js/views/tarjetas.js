@@ -1,3 +1,9 @@
+const CUOTA_MANEJO_MODOS = {
+  siempre: 'se cobra siempre',
+  solo_si_usa: 'solo si hay compras ese mes',
+  nunca: 'nunca se cobra'
+};
+
 const TarjetasView = {
   detalleId: null,
 
@@ -51,8 +57,15 @@ const TarjetasView = {
     return (tarjeta.compras || []).filter(c => c.cuotasPagadas < c.cuotas);
   },
 
+  cobraManejoEsteCorte(tarjeta) {
+    const modo = tarjeta.cuotaManejoModo || 'siempre';
+    if (modo === 'nunca') return false;
+    if (modo === 'solo_si_usa') return this.comprasPendientes(tarjeta).length > 0;
+    return true;
+  },
+
   totalPorPagar(tarjeta) {
-    const cuotaManejo = parseFloat(tarjeta.cuotaManejo) || 0;
+    const cuotaManejo = this.cobraManejoEsteCorte(tarjeta) ? (parseFloat(tarjeta.cuotaManejo) || 0) : 0;
     const cuotas = this.comprasPendientes(tarjeta).reduce((sum, c) => sum + c.montoTotal / c.cuotas, 0);
     return Math.round(cuotaManejo + cuotas);
   },
@@ -172,7 +185,7 @@ const TarjetasView = {
       <div class="card" style="margin-bottom:18px;">
         <div class="detail-row"><div class="detail-row-label">${ICON_CALENDAR}Día de corte</div><div class="detail-row-value">${t.diaCorte} de cada mes</div></div>
         ${t.cupo ? `<div class="detail-row"><div class="detail-row-label">${ICON_STATUS}Cupo mensual</div><div class="detail-row-value">${formatMoney(t.cupo, t.moneda)}</div></div>` : ''}
-        <div class="detail-row"><div class="detail-row-label">${ICON_CLOCK}Cuota de manejo</div><div class="detail-row-value">${t.cuotaManejo ? formatMoney(t.cuotaManejo, t.moneda) : 'No tiene'}</div></div>
+        <div class="detail-row"><div class="detail-row-label">${ICON_CLOCK}Cuota de manejo</div><div class="detail-row-value">${t.cuotaManejo ? `${formatMoney(t.cuotaManejo, t.moneda)} · ${CUOTA_MANEJO_MODOS[t.cuotaManejoModo || 'siempre']}` : 'No tiene'}</div></div>
         ${t.notas ? `<div class="detail-row"><div class="detail-row-label">${ICON_NOTE}Notas</div><div class="detail-row-value">${escapeHtml(t.notas)}</div></div>` : ''}
       </div>
 
@@ -233,6 +246,14 @@ const TarjetasView = {
           ${UI.moneyInputHTML('cuotaManejo', tarjeta?.cuotaManejo ?? 0, {})}
         </div>
         <div class="form-row">
+          <label>¿Cuándo se cobra la cuota de manejo?</label>
+          ${UI.selectHTML('cuotaManejoModo', [
+            { value: 'siempre', label: 'Siempre, la use o no' },
+            { value: 'solo_si_usa', label: 'Solo si hago compras ese mes' },
+            { value: 'nunca', label: 'Nunca' }
+          ], tarjeta?.cuotaManejoModo || 'siempre', { id: 'tj-manejo-modo' })}
+        </div>
+        <div class="form-row">
           <label>Notas (opcional)</label>
           <input type="text" name="notas" value="${escapeHtml(tarjeta?.notas || '')}">
         </div>
@@ -272,6 +293,7 @@ const TarjetasView = {
             diaCorte: parseInt(fd.get('diaCorte'), 10),
             cupo: fd.get('cupo') ? parseFloat(fd.get('cupo')) : null,
             cuotaManejo: parseFloat(fd.get('cuotaManejo')) || 0,
+            cuotaManejoModo: fd.get('cuotaManejoModo') || 'siempre',
             notas: fd.get('notas') || null
           };
           if (esEdicion) {

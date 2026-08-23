@@ -35,9 +35,55 @@ const UI = {
     const root = document.getElementById('toast-root');
     const el = document.createElement('div');
     el.className = `toast ${type === 'info' ? '' : type}`;
-    el.textContent = message;
+    el.innerHTML = `
+      <span class="toast-msg"></span>
+      <button class="toast-close" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    `;
+    el.querySelector('.toast-msg').textContent = message;
     root.appendChild(el);
-    setTimeout(() => el.remove(), 4500);
+
+    const timer = setTimeout(() => dismiss(), 4500);
+    const dismiss = () => {
+      clearTimeout(timer);
+      el.classList.add('toast-leaving');
+      el.addEventListener('transitionend', () => el.remove(), { once: true });
+      setTimeout(() => el.remove(), 300); // por si el navegador no dispara transitionend
+    };
+    el.querySelector('.toast-close').onclick = dismiss;
+
+    // Deslizar a cualquier lado para descartar.
+    let startX = null, dx = 0, dragging = false;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.toast-close')) return; // no capturar el puntero del botón de cerrar
+      startX = e.clientX;
+      dragging = true;
+      el.setPointerCapture(e.pointerId);
+      el.style.transition = 'none';
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      dx = e.clientX - startX;
+      el.style.transform = `translateX(${dx}px)`;
+      el.style.opacity = String(Math.max(0.15, 1 - Math.abs(dx) / 120));
+    });
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      el.style.transition = '';
+      if (Math.abs(dx) > 80) {
+        el.style.transform = `translateX(${dx > 0 ? '120%' : '-120%'})`;
+        el.style.opacity = '0';
+        dismiss();
+      } else {
+        el.style.transform = '';
+        el.style.opacity = '';
+      }
+      dx = 0;
+    };
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
   },
 
   confirmAction(message, onConfirm) {

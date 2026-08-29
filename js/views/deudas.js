@@ -114,6 +114,7 @@ const DeudasView = {
       const estado = this.estadoDeuda(d);
       const miembros = this.miembrosDe(d.id);
       const activosCount = miembros.filter(m => m.activo).length;
+      const pagadosCount = miembros.filter(m => m.activo && this.pagadoEsteCicloMiembro(m, d)).length;
       return `
         <div class="debt-item" data-abrir="${d.id}">
           <div class="debt-item-top">
@@ -121,7 +122,7 @@ const DeudasView = {
             <div class="debt-item-body">
               <div class="debt-item-name">${escapeHtml(d.nombre)} <span class="pill" style="background:color-mix(in srgb, ${color} 16%, transparent);color:${color};">${CATEGORIAS_SUSCRIPCION[d.categoria]?.label || 'Otros'}</span></div>
               <div class="debt-item-sub">Próximo pago: ${d.diaPago} de cada mes</div>
-              <div class="debt-item-sub">${ICON_USERS}${miembros.length ? `${activosCount} de ${miembros.length} miembros` : '0 miembros'}</div>
+              <div class="debt-item-sub">${ICON_USERS}${activosCount ? `${pagadosCount} de ${activosCount} miembros pagaron` : '0 miembros'}</div>
             </div>
             <div class="debt-item-right">
               <div class="debt-item-amount">${formatMoney(d.monto, d.moneda)}<span class="text-dim" style="font-size:10.5px;font-weight:400;">/mes</span></div>

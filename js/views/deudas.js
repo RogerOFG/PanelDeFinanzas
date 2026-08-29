@@ -389,13 +389,10 @@ const DeudasView = {
     return dateToISOLocal(candidate);
   },
 
-  // Fecha en que empezó el ciclo de cobro actual (el último día de pago que ya pasó o es hoy).
+  // Fecha en que empezó el ciclo de cobro actual (un mes antes del próximo vencimiento).
   cicloInicio(diaPago) {
-    const now = new Date();
-    let year = now.getFullYear(), month = now.getMonth();
-    let due = new Date(year, month, diaPago);
-    if (due > now) due = new Date(year, month - 1, diaPago);
-    return dateToISOLocal(due);
+    const proximo = new Date(this.proximoPago(diaPago) + 'T00:00:00');
+    return dateToISOLocal(new Date(proximo.getFullYear(), proximo.getMonth() - 1, diaPago));
   },
 
   pagadoEsteCiclo(deuda) {

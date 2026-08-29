@@ -72,7 +72,7 @@ const TransaccionesView = {
     const todas = Storage.get('transacciones');
     const categoriasDisponibles = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO, ...todas.map(t => t.categoria).filter(Boolean)])].sort();
 
-    let transacciones = todas.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+    let transacciones = todas.slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || (Number(b.id) || Infinity) - (Number(a.id) || Infinity));
     if (this.filtro.cuentaId) transacciones = transacciones.filter(t => String(t.cuentaId) === String(this.filtro.cuentaId) || String(t.cuentaDestinoId) === String(this.filtro.cuentaId));
     if (this.filtro.tipo) transacciones = transacciones.filter(t => t.tipo === this.filtro.tipo);
     if (this.filtro.categoria) transacciones = transacciones.filter(t => t.categoria === this.filtro.categoria);

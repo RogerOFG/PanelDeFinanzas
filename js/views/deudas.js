@@ -704,12 +704,21 @@ const DeudasView = {
     const cuentas = Storage.get('cuentas');
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
 
+    const totalPagado = this.totalPagadoMiembro(miembro);
+    const ciclos = this.ciclosTranscurridosMiembro(miembro, deuda);
+    const totalEsperado = ciclos * miembro.montoMensual;
+    const balance = totalPagado - totalEsperado;
+    const debeVarios = balance < 0 && Math.abs(balance) > miembro.montoMensual;
+    const mesesDebe = debeVarios ? Math.ceil(Math.abs(balance) / miembro.montoMensual) : 0;
+    const montoSugerido = balance < 0 ? Math.abs(balance) : miembro.montoMensual;
+
     UI.openModal(`Pago de ${escapeHtml(miembro.nombre)}`, `
       <form id="pago-miembro-form">
         <p class="text-dim mt-0">${escapeHtml(deuda.nombre)} — cuota: ${formatMoney(miembro.montoMensual, deuda.moneda)}</p>
+        ${debeVarios ? `<p class="stat-sub" style="margin:0 0 10px;"><span class="pill neg">Debe ${formatMoney(Math.abs(balance), deuda.moneda)} — ${mesesDebe} mes${mesesDebe > 1 ? 'es' : ''} sin pagar</span></p>` : ''}
         <div class="form-row">
           <label>¿Cuánto pagó?</label>
-          ${UI.moneyInputHTML('monto', miembro.montoMensual, { required: true })}
+          ${UI.moneyInputHTML('monto', montoSugerido, { required: true })}
         </div>
         <div class="form-row checkbox-row">
           <input type="checkbox" name="soloRegistro" id="pm-solo-registro">

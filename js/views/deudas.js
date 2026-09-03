@@ -517,9 +517,6 @@ const DeudasView = {
       }
     });
 
-    this.pendingMemberReminders().forEach(r => {
-      UI.toast(`Falta marcar el pago de ${r.miembro.nombre} — ${r.deuda.nombre} (${formatMoney(r.miembro.montoMensual, r.deuda.moneda)})`, 'warn');
-    });
   },
 
   // Miembros activos que aún no han pagado este ciclo, cerca o después de la fecha de pago.

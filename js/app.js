@@ -40,10 +40,15 @@ const App = {
 
   pendingReminders() {
     const deudas = Storage.get('deudas').filter(d => d.activa && !DeudasView.pagadoEsteCiclo(d));
-    return deudas
-      .map(d => ({ ...d, prox: DeudasView.proximoPago(d.diaPago) }))
-      .map(d => ({ ...d, dias: daysUntil(d.prox) }))
-      .filter(d => d.dias !== null && d.dias >= 0 && d.dias <= (d.recordatorioDias ?? 3))
+    const hoy = todayISO();
+    return deudas.map(d => {
+      const inicio = DeudasView.cicloInicio(d.diaPago);
+      const vencido = inicio < hoy;
+      if (vencido) return { ...d, prox: inicio, dias: daysUntil(inicio), vencido: true };
+      const prox = DeudasView.proximoPago(d.diaPago);
+      return { ...d, prox, dias: daysUntil(prox), vencido: false };
+    })
+      .filter(d => d.vencido || (d.dias !== null && d.dias >= 0 && d.dias <= (d.recordatorioDias ?? 3)))
       .sort((a, b) => a.dias - b.dias);
   },
 
@@ -60,22 +65,22 @@ const App = {
       <div class="more-menu">
         ${pendientes.map(d => `
           <div class="notif-item" data-ir-deuda="${d.id}" style="cursor:pointer;">
-            <span class="notif-icon ${d.dias === 0 ? 'danger' : 'warn'}">
+            <span class="notif-icon ${d.vencido || d.dias === 0 ? 'danger' : 'warn'}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
             </span>
             <div>
-              <div class="notif-title">${escapeHtml(d.nombre)} vence ${d.dias === 0 ? 'hoy' : `en ${d.dias} día(s)`}</div>
+              <div class="notif-title">${d.vencido ? `${escapeHtml(d.nombre)} — atrasado ${Math.abs(d.dias)} día(s)` : `${escapeHtml(d.nombre)} vence ${d.dias === 0 ? 'hoy' : `en ${d.dias} día(s)`}`}</div>
               <div class="notif-sub">${formatMoney(d.monto, d.moneda)} · ${formatDate(d.prox)}</div>
             </div>
           </div>
         `).join('')}
         ${miembrosPendientes.map(r => `
           <div class="notif-item" data-ir-miembro="${r.miembro.id}" data-ir-deuda="${r.deuda.id}" style="cursor:pointer;">
-            <span class="notif-icon ${r.dias <= 0 ? 'danger' : 'warn'}">
+            <span class="notif-icon ${r.vencido || r.dias <= 0 ? 'danger' : 'warn'}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/></svg>
             </span>
             <div>
-              <div class="notif-title">Falta marcar el pago de ${escapeHtml(r.miembro.nombre)}</div>
+              <div class="notif-title">Falta marcar el pago de ${escapeHtml(r.miembro.nombre)}${r.vencido ? ' (atrasado)' : ''}</div>
               <div class="notif-sub">${escapeHtml(r.deuda.nombre)} · ${formatMoney(r.miembro.montoMensual, r.deuda.moneda)}</div>
             </div>
           </div>

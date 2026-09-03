@@ -70,13 +70,13 @@ const DeudasView = {
   },
 
   estadoDeuda(d) {
-    const dias = daysUntil(this.proximoPago(d.diaPago));
-    const enAlerta = dias !== null && dias <= (d.recordatorioDias ?? 3) && dias >= 0;
-    const pagado = this.pagadoEsteCiclo(d);
     if (!d.activa) return { label: 'Inactiva', cls: 'tipo' };
-    if (pagado) return { label: 'Pagado', cls: 'pos' };
-    if (dias !== null && dias < 0) return { label: 'Vencido', cls: 'neg' };
-    if (enAlerta) return { label: 'Vence pronto', cls: 'warn' };
+    if (this.pagadoEsteCiclo(d)) return { label: 'Pagado', cls: 'pos' };
+    const inicio = this.cicloInicio(d.diaPago);
+    const hoy = todayISO();
+    if (inicio < hoy) return { label: 'Atrasado', cls: 'neg' };
+    const dias = daysUntil(this.proximoPago(d.diaPago));
+    if (dias !== null && dias <= (d.recordatorioDias ?? 3) && dias >= 0) return { label: 'Vence pronto', cls: 'warn' };
     return { label: 'Al día', cls: 'tipo' };
   },
 
@@ -500,13 +500,18 @@ const DeudasView = {
   // Miembros activos que aún no han pagado este ciclo, cerca o después de la fecha de pago.
   pendingMemberReminders() {
     const deudas = Storage.get('deudas').filter(d => d.activa);
+    const hoy = todayISO();
     const resultado = [];
     deudas.forEach(d => {
       const dias = daysUntil(this.proximoPago(d.diaPago));
       const umbral = d.recordatorioDias ?? 3;
-      if (dias === null || dias > umbral) return;
+      const inicio = this.cicloInicio(d.diaPago);
+      const vencido = inicio < hoy && !this.pagadoEsteCiclo(d);
+      if (!vencido && (dias === null || dias > umbral)) return;
       this.miembrosDe(d.id).filter(m => m.activo).forEach(m => {
-        if (!this.pagadoEsteCicloMiembro(m, d)) resultado.push({ miembro: m, deuda: d, dias });
+        if (!this.pagadoEsteCicloMiembro(m, d)) {
+          resultado.push({ miembro: m, deuda: d, dias: vencido ? daysUntil(inicio) : dias, vencido });
+        }
       });
     });
     return resultado;

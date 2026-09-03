@@ -132,9 +132,13 @@ const Storage = {
   },
 
   remove(collection, id) {
+    const removed = this._db[collection].find(i => String(i.id) === String(id));
     this._db[collection] = this._db[collection].filter(i => String(i.id) !== String(id));
     apiFetch(`${ENDPOINTS[collection]}/${id}`, { method: 'DELETE' })
-      .catch(err => UI.toast('No se pudo eliminar en el servidor: ' + err.message, 'danger'));
+      .catch(err => {
+        if (removed) this._db[collection].push(removed);
+        UI.toast('No se pudo eliminar: ' + err.message, 'danger');
+      });
   },
 
   // Ya no hace falta persistir "todo el árbol" como en localStorage — cada insert/update/remove

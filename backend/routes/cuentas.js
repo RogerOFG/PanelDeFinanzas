@@ -32,8 +32,15 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  await pool.query(`DELETE FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
-  res.status(204).end();
+  try {
+    await pool.query(`DELETE FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    res.status(204).end();
+  } catch (e) {
+    if (e.code === '23503') {
+      return res.status(409).json({ error: 'No se puede eliminar esta cuenta porque tiene transacciones asociadas.' });
+    }
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;

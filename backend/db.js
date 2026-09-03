@@ -59,6 +59,9 @@ async function migrate() {
     );
   `);
   await pool.query(`ALTER TABLE tarjetas_credito ADD COLUMN IF NOT EXISTS cuota_manejo_modo TEXT NOT NULL DEFAULT 'siempre';`);
+  await pool.query(`ALTER TABLE prestamo_pagos ADD COLUMN IF NOT EXISTS cuenta_id INTEGER REFERENCES cuentas(id);`);
+  await pool.query(`ALTER TABLE prestamo_pagos ADD COLUMN IF NOT EXISTS transaccion_id INTEGER REFERENCES transacciones(id);`);
+  await pool.query(`ALTER TABLE prestamo_pagos ADD COLUMN IF NOT EXISTS fecha DATE DEFAULT CURRENT_DATE;`);
 }
 
 module.exports = pool;

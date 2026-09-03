@@ -93,6 +93,9 @@ const PrestamosView = {
 
   openForm(id) {
     const prestamo = id ? Storage.find('prestamos', id) : null;
+    const cuentas = Storage.get('cuentas');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+
     UI.openModal(prestamo ? 'Editar préstamo' : 'Nuevo préstamo', `
       <form id="prestamo-form">
         <div class="form-row">
@@ -118,6 +121,16 @@ const PrestamosView = {
           <label>Monto ya pagado</label>
           ${UI.moneyInputHTML('montoPagado', prestamo?.montoPagado ?? 0)}
         </div>
+        ${!prestamo ? `
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="soloRegistro" id="pf-solo-registro">
+          <label for="pf-solo-registro" style="margin:0;">Ya está reflejado en mi saldo (no crear transacción)</label>
+        </div>
+        <div class="form-row" id="pf-cuenta-row">
+          <label id="pf-cuenta-label">¿De qué cuenta salió?</label>
+          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'pf-cuenta' })}
+        </div>
+        ` : ''}
         <div class="form-row inline">
           <div>
             <label>Fecha</label>
@@ -141,15 +154,39 @@ const PrestamosView = {
       onMount: (root) => {
         UI.initSelects(root);
         UI.initMoneyInputs(root);
+
+        if (!prestamo) {
+          const soloRegistroChk = root.querySelector('#pf-solo-registro');
+          const cuentaRow = root.querySelector('#pf-cuenta-row');
+          const cuentaLabel = root.querySelector('#pf-cuenta-label');
+          const tipoSelect = root.querySelector('[name="tipo"]');
+
+          const updateCuentaLabel = () => {
+            const tipo = tipoSelect?.value || 'dado';
+            cuentaLabel.textContent = tipo === 'dado' ? '¿De qué cuenta salió?' : '¿A qué cuenta ingresó?';
+          };
+          updateCuentaLabel();
+          if (tipoSelect) tipoSelect.addEventListener('change', updateCuentaLabel);
+
+          soloRegistroChk.addEventListener('change', () => {
+            cuentaRow.style.display = soloRegistroChk.checked ? 'none' : '';
+          });
+        }
+
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#prestamo-form').onsubmit = (e) => {
           e.preventDefault();
           if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
+          const tipo = fd.get('tipo');
           const monto = parseFloat(fd.get('monto'));
           const montoPagado = parseFloat(fd.get('montoPagado')) || 0;
+          const soloRegistro = !prestamo && fd.get('soloRegistro') === 'on';
+          const cuentaId = (!prestamo && !soloRegistro) ? fd.get('cuentaId') : null;
+          const cuenta = cuentaId ? Storage.find('cuentas', cuentaId) : null;
+
           const data = {
-            tipo: fd.get('tipo'),
+            tipo,
             contraparte: fd.get('contraparte').trim(),
             monto,
             moneda: fd.get('moneda'),
@@ -158,12 +195,37 @@ const PrestamosView = {
             fechaLimite: fd.get('fechaLimite') || null,
             notas: fd.get('notas').trim(),
             completado: montoPagado >= monto,
-            pagos: prestamo?.pagos || []
+            pagos: prestamo?.pagos || [],
+            cuentaId: cuentaId || undefined,
+            soloRegistro: soloRegistro || undefined
           };
-          if (prestamo) Storage.update('prestamos', prestamo.id, data);
-          else Storage.insert('prestamos', data);
+
+          if (!prestamo && cuenta) {
+            cuenta.saldo += tipo === 'dado' ? -monto : monto;
+          }
+
+          const revertirSaldo = () => {
+            if (!prestamo && cuenta) {
+              cuenta.saldo -= tipo === 'dado' ? -monto : monto;
+              CuentasView.render();
+            }
+          };
+
+          if (prestamo) {
+            Storage.update('prestamos', prestamo.id, data);
+          } else {
+            Storage.insert('prestamos', data, revertirSaldo, () => {
+              if (!soloRegistro) {
+                Storage.initFromServer().then(() => {
+                  TransaccionesView.render();
+                  if (typeof DashboardView !== 'undefined') DashboardView.render();
+                });
+              }
+            });
+          }
           UI.closeModal();
           PrestamosView.render();
+          CuentasView.render();
           UI.toast(prestamo ? 'Préstamo actualizado' : 'Préstamo creado');
         };
       }
@@ -173,12 +235,28 @@ const PrestamosView = {
   openPago(id) {
     const prestamo = Storage.find('prestamos', id);
     const pendiente = Math.max(0, prestamo.monto - prestamo.montoPagado);
+    const cuentas = Storage.get('cuentas');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+    const esDado = prestamo.tipo === 'dado';
+
     UI.openModal('Registrar pago', `
       <form id="pago-form">
         <p class="text-dim mt-0">${escapeHtml(prestamo.contraparte)} — pendiente: ${formatMoney(pendiente, prestamo.moneda)}</p>
         <div class="form-row">
           <label>Monto del pago</label>
           ${UI.moneyInputHTML('monto', '', { required: true })}
+        </div>
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="soloRegistro" id="pp-solo-registro">
+          <label for="pp-solo-registro" style="margin:0;">Ya está reflejado en mi saldo (no crear transacción)</label>
+        </div>
+        <div class="form-row" id="pp-cuenta-row">
+          <label>${esDado ? '¿A qué cuenta ingresa?' : '¿De qué cuenta sale?'}</label>
+          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'pp-cuenta' })}
+        </div>
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="${todayISO()}">
         </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
@@ -187,20 +265,48 @@ const PrestamosView = {
       </form>
     `, {
       onMount: (root) => {
+        UI.initSelects(root);
         UI.initMoneyInputs(root);
+
+        const soloRegistroChk = root.querySelector('#pp-solo-registro');
+        const cuentaRow = root.querySelector('#pp-cuenta-row');
+        soloRegistroChk.addEventListener('change', () => {
+          cuentaRow.style.display = soloRegistroChk.checked ? 'none' : '';
+        });
+
         root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
         root.querySelector('#pago-form').onsubmit = (e) => {
           e.preventDefault();
           if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = Math.min(parseFloat(fd.get('monto')), pendiente);
+          const soloRegistro = fd.get('soloRegistro') === 'on';
+          const cuentaId = soloRegistro ? null : fd.get('cuentaId');
+          const fecha = fd.get('fecha') || todayISO();
+          const cuenta = soloRegistro ? null : Storage.find('cuentas', cuentaId);
+
           const nuevoPagado = prestamo.montoPagado + monto;
           prestamo.montoPagado = nuevoPagado;
           prestamo.completado = nuevoPagado >= prestamo.monto;
-          prestamo.pagos = [...(prestamo.pagos || []), { monto, fecha: todayISO() }];
-          Storage.pagoPrestamo(prestamo.id, monto).catch(err => UI.toast('No se pudo guardar el pago: ' + err.message, 'danger'));
+          prestamo.pagos = [...(prestamo.pagos || []), { monto, fecha }];
+          if (cuenta) cuenta.saldo += esDado ? monto : -monto;
+
+          Storage.pagoPrestamo(prestamo.id, { monto, cuentaId, fecha, soloRegistro }).then(() => {
+            if (!soloRegistro) {
+              Storage.initFromServer().then(() => {
+                TransaccionesView.render();
+                if (typeof DashboardView !== 'undefined') DashboardView.render();
+              });
+            }
+          }).catch(err => {
+            if (cuenta) cuenta.saldo -= esDado ? monto : -monto;
+            CuentasView.render();
+            UI.toast('No se pudo guardar el pago: ' + err.message, 'danger');
+          });
+
           UI.closeModal();
           PrestamosView.render();
+          CuentasView.render();
           UI.toast(nuevoPagado >= prestamo.monto ? 'Préstamo saldado por completo' : 'Pago registrado');
         };
       }

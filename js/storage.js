@@ -146,8 +146,8 @@ const Storage = {
   aporteMeta(id, monto) {
     return apiFetch(`/metas/${id}/aporte`, { method: 'POST', body: JSON.stringify({ monto }) });
   },
-  pagoPrestamo(id, monto) {
-    return apiFetch(`/prestamos/${id}/pago`, { method: 'POST', body: JSON.stringify({ monto }) });
+  pagoPrestamo(id, { monto, cuentaId, fecha, soloRegistro }) {
+    return apiFetch(`/prestamos/${id}/pago`, { method: 'POST', body: JSON.stringify({ monto, cuentaId, fecha, soloRegistro }) });
   },
   pagoDeuda(id, { monto, cuentaId, fecha, soloRegistro }) {
     return apiFetch(`/deudas/${id}/pago`, { method: 'POST', body: JSON.stringify({ monto, cuentaId, fecha, soloRegistro }) });

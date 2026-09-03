@@ -69,12 +69,37 @@ const DeudasView = {
     return { icon: cat.icon, color: cat.color };
   },
 
+  // Último vencimiento que ya ocurrió (el diaPago más reciente que no es futuro).
+  // Siempre devuelve una fecha <= hoy. Es independiente de si se pagó o no.
+  ultimoVencimiento(diaPago) {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
+    const esteMes = new Date(y, m, diaPago);
+    // Si el diaPago de este mes ya pasó o es hoy, el último vencimiento es este mes
+    if (esteMes <= new Date(y, m, day)) return dateToISOLocal(esteMes);
+    // Si no, fue el mes pasado
+    return dateToISOLocal(new Date(y, m - 1, diaPago));
+  },
+
+  // ¿El último vencimiento que ya pasó fue cubierto por un pago?
+  // Busca un pago entre [vencimiento - 1 mes, vencimiento].
+  ultimoVencimientoPagado(deuda) {
+    const uv = this.ultimoVencimiento(deuda.diaPago);
+    const uvDate = new Date(uv + 'T00:00:00');
+    const inicioUv = dateToISOLocal(new Date(uvDate.getFullYear(), uvDate.getMonth() - 1, deuda.diaPago));
+    return (deuda.historialPagos || []).some(p => p.fecha >= inicioUv && p.fecha <= uv);
+  },
+
+  estaAtrasado(d) {
+    if (!d.activa || this.pagadoEsteCiclo(d)) return false;
+    const diasUltVenc = daysUntil(this.ultimoVencimiento(d.diaPago));
+    return diasUltVenc !== null && diasUltVenc < 0 && !this.ultimoVencimientoPagado(d);
+  },
+
   estadoDeuda(d) {
     if (!d.activa) return { label: 'Inactiva', cls: 'tipo' };
     if (this.pagadoEsteCiclo(d)) return { label: 'Pagado', cls: 'pos' };
-    const inicio = this.cicloInicio(d.diaPago);
-    const hoy = todayISO();
-    if (inicio < hoy) return { label: 'Atrasado', cls: 'neg' };
+    if (this.estaAtrasado(d)) return { label: 'Atrasado', cls: 'neg' };
     const dias = daysUntil(this.proximoPago(d.diaPago));
     if (dias !== null && dias <= (d.recordatorioDias ?? 3) && dias >= 0) return { label: 'Vence pronto', cls: 'warn' };
     return { label: 'Al día', cls: 'tipo' };
@@ -500,17 +525,16 @@ const DeudasView = {
   // Miembros activos que aún no han pagado este ciclo, cerca o después de la fecha de pago.
   pendingMemberReminders() {
     const deudas = Storage.get('deudas').filter(d => d.activa);
-    const hoy = todayISO();
     const resultado = [];
     deudas.forEach(d => {
       const dias = daysUntil(this.proximoPago(d.diaPago));
       const umbral = d.recordatorioDias ?? 3;
-      const inicio = this.cicloInicio(d.diaPago);
-      const vencido = inicio < hoy && !this.pagadoEsteCiclo(d);
+      const vencido = this.estaAtrasado(d);
       if (!vencido && (dias === null || dias > umbral)) return;
+      const diasVenc = vencido ? daysUntil(this.ultimoVencimiento(d.diaPago)) : dias;
       this.miembrosDe(d.id).filter(m => m.activo).forEach(m => {
         if (!this.pagadoEsteCicloMiembro(m, d)) {
-          resultado.push({ miembro: m, deuda: d, dias: vencido ? daysUntil(inicio) : dias, vencido });
+          resultado.push({ miembro: m, deuda: d, dias: diasVenc, vencido });
         }
       });
     });

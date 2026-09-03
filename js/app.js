@@ -40,11 +40,12 @@ const App = {
 
   pendingReminders() {
     const deudas = Storage.get('deudas').filter(d => d.activa && !DeudasView.pagadoEsteCiclo(d));
-    const hoy = todayISO();
     return deudas.map(d => {
-      const inicio = DeudasView.cicloInicio(d.diaPago);
-      const vencido = inicio < hoy;
-      if (vencido) return { ...d, prox: inicio, dias: daysUntil(inicio), vencido: true };
+      const vencido = DeudasView.estaAtrasado(d);
+      if (vencido) {
+        const ultVenc = DeudasView.ultimoVencimiento(d.diaPago);
+        return { ...d, prox: ultVenc, dias: daysUntil(ultVenc), vencido: true };
+      }
       const prox = DeudasView.proximoPago(d.diaPago);
       return { ...d, prox, dias: daysUntil(prox), vencido: false };
     })

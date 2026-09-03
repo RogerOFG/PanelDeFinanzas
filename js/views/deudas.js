@@ -530,7 +530,10 @@ const DeudasView = {
       const dias = daysUntil(this.proximoPago(d.diaPago));
       const umbral = d.recordatorioDias ?? 3;
       const vencido = this.estaAtrasado(d);
-      if (!vencido && (dias === null || dias > umbral)) return;
+      const deudaPagada = this.pagadoEsteCiclo(d);
+      // Mostrar miembros pendientes si: la deuda ya fue pagada (cobrar a los que faltan),
+      // está vencida, o está dentro del umbral de recordatorio.
+      if (!deudaPagada && !vencido && (dias === null || dias > umbral)) return;
       const diasVenc = vencido ? daysUntil(this.ultimoVencimiento(d.diaPago)) : dias;
       this.miembrosDe(d.id).filter(m => m.activo).forEach(m => {
         if (!this.pagadoEsteCicloMiembro(m, d)) {

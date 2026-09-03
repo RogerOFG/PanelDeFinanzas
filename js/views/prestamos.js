@@ -279,7 +279,7 @@ const PrestamosView = {
           e.preventDefault();
           if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
-          const monto = Math.min(parseFloat(fd.get('monto')), pendiente);
+          const monto = parseFloat(fd.get('monto'));
           const soloRegistro = fd.get('soloRegistro') === 'on';
           const cuentaId = soloRegistro ? null : fd.get('cuentaId');
           const fecha = fd.get('fecha') || todayISO();
@@ -307,7 +307,18 @@ const PrestamosView = {
           UI.closeModal();
           PrestamosView.render();
           CuentasView.render();
-          UI.toast(nuevoPagado >= prestamo.monto ? 'Préstamo saldado por completo' : 'Pago registrado');
+          if (nuevoPagado >= prestamo.monto) {
+            UI.toast('Préstamo saldado por completo');
+            setTimeout(() => {
+              UI.confirmAction('Este préstamo ya está saldado. ¿Deseas eliminarlo del historial?', () => {
+                Storage.remove('prestamos', prestamo.id);
+                PrestamosView.render();
+                UI.toast('Préstamo eliminado');
+              });
+            }, 400);
+          } else {
+            UI.toast('Pago registrado');
+          }
         };
       }
     });

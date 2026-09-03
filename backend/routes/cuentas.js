@@ -32,14 +32,24 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query(`DELETE FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    await client.query('BEGIN');
+    // Desasociar transacciones para conservar el historial sin referencia a la cuenta
+    await client.query(`UPDATE transacciones SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
+    await client.query(`UPDATE transacciones SET cuenta_destino_id = NULL WHERE cuenta_destino_id=$1;`, [req.params.id]);
+    await client.query(`UPDATE deuda_pagos SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
+    await client.query(`UPDATE prestamo_pagos SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
+    await client.query(`UPDATE pagos_miembro SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
+    await client.query(`UPDATE pagos_tarjeta SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
+    await client.query(`DELETE FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    await client.query('COMMIT');
     res.status(204).end();
   } catch (e) {
-    if (e.code === '23503') {
-      return res.status(409).json({ error: 'No se puede eliminar esta cuenta porque tiene transacciones asociadas.' });
-    }
+    await client.query('ROLLBACK');
     res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
   }
 });
 

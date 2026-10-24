@@ -184,7 +184,7 @@ const TarjetasView = {
             <div class="detail-row-value">${formatMoney(c.montoTotal, t.moneda)}</div>
             <span class="pill ${completa ? 'pos' : 'tipo'}" style="margin-top:4px;display:inline-block;">${c.cuotasPagadas}/${c.cuotas} cuotas</span>
             <button class="btn secondary small" style="margin-top:6px;" data-devolucion="${c.id}">Devolución</button>
-            ${c.cuotasPagadas === 0 ? `<button class="btn secondary small" style="margin-top:6px;" data-borrar-compra="${c.id}">${ICON_TRASH}</button>` : ''}
+            <button class="btn secondary small" style="margin-top:6px;" data-borrar-compra="${c.id}">${ICON_TRASH}</button>
           </div>
         </div>`;
     };

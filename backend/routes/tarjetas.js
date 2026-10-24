@@ -75,10 +75,10 @@ router.delete('/compras/:compraId', async (req, res) => {
   const compra = await pool.query(
     `SELECT ct.id FROM compras_tarjeta ct
      JOIN tarjetas_credito t ON t.id = ct.tarjeta_id
-     WHERE ct.id=$1 AND t.usuario_id=$2 AND ct.cuotas_pagadas = 0;`,
+     WHERE ct.id=$1 AND t.usuario_id=$2;`,
     [req.params.compraId, req.usuario.id]
   );
-  if (!compra.rows[0]) return res.status(400).json({ error: 'La compra no existe o ya tiene cuotas pagadas' });
+  if (!compra.rows[0]) return res.status(400).json({ error: 'La compra no existe' });
   await pool.query(`DELETE FROM compras_tarjeta WHERE id=$1;`, [req.params.compraId]);
   res.status(204).end();
 });

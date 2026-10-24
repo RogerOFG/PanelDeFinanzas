@@ -413,16 +413,17 @@ const TarjetasView = {
     const cuentas = Storage.get('cuentas');
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
     const porCuota = compra.montoTotal / compra.cuotas;
-    const restante = compra.montoTotal - (compra.cuotasPagadas * porCuota);
+    const yaPagado = compra.cuotasPagadas * porCuota;
+    const restante = compra.montoTotal - yaPagado;
 
     UI.openModal(`Devolución — ${escapeHtml(compra.descripcion)}`, `
       <form id="devolucion-form">
-        <p class="text-dim mt-0">Saldo pendiente de esta compra: <strong style="color:var(--text);">${formatMoney(restante, tarjeta.moneda)}</strong></p>
+        <p class="text-dim mt-0">Total original: ${formatMoney(compra.montoTotal, tarjeta.moneda)} · Ya pagado en cuotas: ${formatMoney(yaPagado, tarjeta.moneda)}</p>
         <div class="form-row">
           <label>Monto de la devolución</label>
           ${UI.moneyInputHTML('monto', compra.montoTotal, { required: true })}
         </div>
-        <p class="text-dim" style="font-size:12px;">Si el monto supera lo pendiente (${formatMoney(restante, tarjeta.moneda)}), el excedente se acreditará a tu cuenta.</p>
+        <p class="text-dim" style="font-size:12px;">Si ya pagaste cuotas y la devolución cubre el total, se te acreditará lo que pagaste de más a tu cuenta.</p>
         <div class="form-row">
           <label>¿A qué cuenta va el excedente? (si aplica)</label>
           ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'dev-cuenta' })}

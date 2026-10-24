@@ -160,20 +160,23 @@ router.post('/:id/devolucion', async (req, res) => {
     if (!compra.rows[0]) throw new Error('Compra no encontrada');
 
     const c = compra.rows[0];
-    const porCuota = parseFloat(c.monto_total) / c.cuotas;
-    const restante = parseFloat(c.monto_total) - (c.cuotas_pagadas * porCuota);
+    const porCuotaOriginal = parseFloat(c.monto_total) / c.cuotas;
+    const yaPagado = c.cuotas_pagadas * porCuotaOriginal;
     const montoDevolucion = parseFloat(monto);
+    const nuevoTotal = parseFloat(c.monto_total) - montoDevolucion;
+    const deudaRestante = Math.max(0, nuevoTotal - yaPagado);
 
-    // Lo que se resta de la deuda de la tarjeta (máximo lo que queda pendiente de la compra)
-    const reduccionDeuda = Math.min(montoDevolucion, restante);
-    // Lo que sobra y va a la cuenta del usuario
-    const excedente = Math.max(0, montoDevolucion - restante);
+    // Lo que el usuario pagó de más (cuotas pagadas que superan el nuevo total)
+    const excedente = Math.max(0, yaPagado - Math.max(0, nuevoTotal)) + Math.max(0, montoDevolucion - parseFloat(c.monto_total));
 
-    if (reduccionDeuda >= restante) {
+    if (deudaRestante <= 0) {
       await client.query(`DELETE FROM compras_tarjeta WHERE id=$1;`, [compraId]);
     } else {
-      const nuevoTotal = parseFloat(c.monto_total) - montoDevolucion;
-      await client.query(`UPDATE compras_tarjeta SET monto_total=$1 WHERE id=$2;`, [Math.max(0, nuevoTotal), compraId]);
+      const cuotasRestantes = c.cuotas - c.cuotas_pagadas;
+      await client.query(
+        `UPDATE compras_tarjeta SET monto_total=$1, cuotas=$2, cuotas_pagadas=0 WHERE id=$3;`,
+        [deudaRestante, cuotasRestantes, compraId]
+      );
     }
 
     if (excedente > 0 && cuentaId) {

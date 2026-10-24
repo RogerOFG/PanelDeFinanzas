@@ -144,4 +144,59 @@ router.post('/:id/pago', async (req, res) => {
   }
 });
 
+// Devolución de una compra: reduce el monto total de la compra.
+// Si la devolución es total, elimina la compra.
+// Si hay excedente (monto devuelto > deuda restante de la compra), se acredita a la cuenta.
+router.post('/:id/devolucion', async (req, res) => {
+  const { compraId, monto, cuentaId, fecha } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const tarjeta = await client.query(`SELECT * FROM tarjetas_credito WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    if (!tarjeta.rows[0]) throw new Error('Tarjeta no encontrada');
+
+    const compra = await client.query(`SELECT * FROM compras_tarjeta WHERE id=$1 AND tarjeta_id=$2;`, [compraId, req.params.id]);
+    if (!compra.rows[0]) throw new Error('Compra no encontrada');
+
+    const c = compra.rows[0];
+    const porCuota = parseFloat(c.monto_total) / c.cuotas;
+    const restante = parseFloat(c.monto_total) - (c.cuotas_pagadas * porCuota);
+    const montoDevolucion = parseFloat(monto);
+
+    // Lo que se resta de la deuda de la tarjeta (máximo lo que queda pendiente de la compra)
+    const reduccionDeuda = Math.min(montoDevolucion, restante);
+    // Lo que sobra y va a la cuenta del usuario
+    const excedente = Math.max(0, montoDevolucion - restante);
+
+    if (reduccionDeuda >= restante) {
+      await client.query(`DELETE FROM compras_tarjeta WHERE id=$1;`, [compraId]);
+    } else {
+      const nuevoTotal = parseFloat(c.monto_total) - montoDevolucion;
+      await client.query(`UPDATE compras_tarjeta SET monto_total=$1 WHERE id=$2;`, [Math.max(0, nuevoTotal), compraId]);
+    }
+
+    if (excedente > 0 && cuentaId) {
+      const cuenta = await client.query(`SELECT * FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [cuentaId, req.usuario.id]);
+      if (!cuenta.rows[0]) throw new Error('Cuenta no encontrada');
+
+      await client.query(`UPDATE cuentas SET saldo = saldo + $1 WHERE id=$2;`, [excedente, cuentaId]);
+      await client.query(
+        `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
+         VALUES ($1,$2,'ingreso',$3,'tarjeta_credito',$4, COALESCE($5, CURRENT_DATE));`,
+        [req.usuario.id, cuentaId, excedente, `Devolución tarjeta — ${tarjeta.rows[0].nombre}: ${c.descripcion}`, fecha || null]
+      );
+    }
+
+    await client.query('COMMIT');
+    const actualizada = await pool.query(`SELECT ${SELECT_FIELDS} FROM tarjetas_credito WHERE id=$1;`, [req.params.id]);
+    res.json(await conDetalle(actualizada.rows[0]));
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

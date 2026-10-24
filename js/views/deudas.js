@@ -87,7 +87,7 @@ const DeudasView = {
     const uv = this.ultimoVencimiento(deuda.diaPago);
     const uvDate = new Date(uv + 'T00:00:00');
     const inicioUv = dateToISOLocal(new Date(uvDate.getFullYear(), uvDate.getMonth() - 1, deuda.diaPago));
-    return (deuda.historialPagos || []).some(p => p.fecha >= inicioUv && p.fecha <= uv);
+    return (deuda.historialPagos || []).some(p => p.fecha > inicioUv && p.fecha <= uv);
   },
 
   estaAtrasado(d) {
@@ -423,7 +423,8 @@ const DeudasView = {
 
   pagadoEsteCiclo(deuda) {
     const inicio = this.cicloInicio(deuda.diaPago);
-    return (deuda.historialPagos || []).some(p => p.fecha >= inicio);
+    const fin = this.proximoPago(deuda.diaPago);
+    return (deuda.historialPagos || []).some(p => p.fecha > inicio && p.fecha <= fin);
   },
 
   marcarPago(id) {
@@ -509,14 +510,27 @@ const DeudasView = {
   checkReminders() {
     const deudas = Storage.get('deudas').filter(d => d.activa && !this.pagadoEsteCiclo(d));
     deudas.forEach(d => {
-      const prox = this.proximoPago(d.diaPago);
+      const vencido = this.estaAtrasado(d);
+      const prox = vencido ? this.ultimoVencimiento(d.diaPago) : this.proximoPago(d.diaPago);
       const dias = daysUntil(prox);
       const umbral = d.recordatorioDias ?? 3;
-      if (dias !== null && dias >= 0 && dias <= umbral) {
-        UI.toast(`"${d.nombre}" vence en ${dias === 0 ? 'hoy' : dias + ' día(s)'} — ${formatMoney(d.monto, d.moneda)}`, dias === 0 ? 'danger' : 'warn');
+
+      if (vencido) {
+        const titulo = `${d.nombre} — atrasado ${Math.abs(dias)} día(s)`;
+        App.sendBrowserNotif('Pago atrasado', `${titulo} — ${formatMoney(d.monto, d.moneda)}`);
+      } else if (dias !== null && dias >= 0 && dias <= umbral) {
+        const texto = dias === 0 ? 'hoy' : `en ${dias} día(s)`;
+        UI.toast(`"${d.nombre}" vence ${texto} — ${formatMoney(d.monto, d.moneda)}`, dias === 0 ? 'danger' : 'warn');
+        App.sendBrowserNotif('Pago próximo', `"${d.nombre}" vence ${texto} — ${formatMoney(d.monto, d.moneda)}`);
       }
     });
 
+    const miembros = this.pendingMemberReminders();
+    miembros.forEach(r => {
+      if (r.vencido) {
+        App.sendBrowserNotif('Pago de miembro atrasado', `${r.miembro.nombre} — ${r.deuda.nombre}`);
+      }
+    });
   },
 
   // Miembros activos que aún no han pagado este ciclo, cerca o después de la fecha de pago.
@@ -547,7 +561,8 @@ const DeudasView = {
 
   pagadoEsteCicloMiembro(miembro, deuda) {
     const inicio = this.cicloInicio(deuda.diaPago);
-    return (miembro.pagos || []).some(p => p.fecha >= inicio);
+    const fin = this.proximoPago(deuda.diaPago);
+    return (miembro.pagos || []).some(p => p.fecha > inicio && p.fecha <= fin);
   },
 
   totalPagadoMiembro(miembro) {

@@ -47,9 +47,9 @@ const PrestamosView = {
               <strong style="margin-left:6px;">${escapeHtml(p.contraparte)}</strong>
             </div>
             <div style="display:flex;gap:6px;">
-              ${!p.completado ? `<button class="btn small secondary" data-pago="${p.id}">+ Pago</button>` : ''}
-              <button class="btn icon small secondary" data-edit="${p.id}">${ICON_EDIT}</button>
-              <button class="btn icon small danger" data-del="${p.id}">${ICON_TRASH}</button>
+              ${!p.completado && !String(p.id).startsWith('tmp_') ? `<button class="btn small secondary" data-pago="${p.id}">+ Pago</button>` : ''}
+              ${!String(p.id).startsWith('tmp_') ? `<button class="btn icon small secondary" data-edit="${p.id}">${ICON_EDIT}</button>` : ''}
+              ${!String(p.id).startsWith('tmp_') ? `<button class="btn icon small danger" data-del="${p.id}">${ICON_TRASH}</button>` : ''}
             </div>
           </div>
           <div class="progress-bar"><div style="width:${pct}%;"></div></div>
@@ -83,9 +83,15 @@ const PrestamosView = {
     container.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => this.openForm(b.dataset.edit));
     container.querySelectorAll('[data-pago]').forEach(b => b.onclick = () => this.openPago(b.dataset.pago));
     container.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
-      UI.confirmAction('¿Eliminar este préstamo?', () => {
+      UI.confirmAction('¿Eliminar este préstamo? Se revertirá el saldo pendiente a la cuenta original.', () => {
         Storage.remove('prestamos', b.dataset.del);
         this.render();
+        Storage.initFromServer().then(() => {
+          this.render();
+          CuentasView.render();
+          TransaccionesView.render();
+          if (typeof DashboardView !== 'undefined') DashboardView.render();
+        });
         UI.toast('Préstamo eliminado');
       });
     });
@@ -212,11 +218,20 @@ const PrestamosView = {
           };
 
           if (prestamo) {
-            Storage.update('prestamos', prestamo.id, data);
+            Storage.update('prestamos', prestamo.id, data, () => {}, (updated) => {
+              Storage.initFromServer().then(() => {
+                PrestamosView.render();
+                CuentasView.render();
+                TransaccionesView.render();
+                if (typeof DashboardView !== 'undefined') DashboardView.render();
+              });
+            });
           } else {
             Storage.insert('prestamos', data, revertirSaldo, () => {
+              PrestamosView.render();
               if (!soloRegistro) {
                 Storage.initFromServer().then(() => {
+                  PrestamosView.render();
                   TransaccionesView.render();
                   if (typeof DashboardView !== 'undefined') DashboardView.render();
                 });

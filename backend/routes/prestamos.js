@@ -60,14 +60,52 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { tipo, contraparte, moneda, monto, montoPagado, fecha, fechaLimite, notas } = req.body;
   const completado = (montoPagado || 0) >= monto;
-  const { rows } = await pool.query(
-    `UPDATE prestamos SET tipo=$1, contraparte=$2, moneda=$3, monto=$4, monto_pagado=$5,
-       fecha=$6, fecha_limite=$7, notas=$8, completado=$9
-     WHERE id=$10 AND usuario_id=$11 RETURNING ${SELECT_FIELDS};`,
-    [tipo, contraparte, moneda, monto, montoPagado, fecha, fechaLimite || null, notas || null, completado, req.params.id, req.usuario.id]
-  );
-  if (!rows[0]) return res.status(404).json({ error: 'Préstamo no encontrado' });
-  res.json(rows[0]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const prev = await client.query(`SELECT * FROM prestamos WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    if (!prev.rows[0]) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Préstamo no encontrado' }); }
+
+    const montoAnterior = parseFloat(prev.rows[0].monto);
+    const montoNuevo = parseFloat(monto);
+    const diff = montoNuevo - montoAnterior;
+
+    if (diff !== 0) {
+      const txOrig = await client.query(
+        `SELECT cuenta_id FROM transacciones WHERE usuario_id=$1 AND categoria='prestamos' AND descripcion LIKE $2 ORDER BY id ASC LIMIT 1;`,
+        [req.usuario.id, `Préstamo%${prev.rows[0].contraparte}%`]
+      );
+      if (txOrig.rows[0]?.cuenta_id) {
+        const cuentaId = txOrig.rows[0].cuenta_id;
+        const tipoP = prev.rows[0].tipo;
+        const saldoOp = tipoP === 'dado' ? '-' : '+';
+        await client.query(`UPDATE cuentas SET saldo = saldo ${saldoOp} $1 WHERE id=$2;`, [diff, cuentaId]);
+        const tipoTx = tipoP === 'dado' ? 'gasto' : 'ingreso';
+        const desc = `Ajuste préstamo — ${contraparte} (${diff > 0 ? '+' : ''}${diff})`;
+        await client.query(
+          `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
+           VALUES ($1,$2,$3,$4,'prestamos',$5, CURRENT_DATE);`,
+          [req.usuario.id, cuentaId, tipoTx, Math.abs(diff), desc]
+        );
+      }
+    }
+
+    const { rows } = await client.query(
+      `UPDATE prestamos SET tipo=$1, contraparte=$2, moneda=$3, monto=$4, monto_pagado=$5,
+         fecha=$6, fecha_limite=$7, notas=$8, completado=$9
+       WHERE id=$10 AND usuario_id=$11 RETURNING ${SELECT_FIELDS};`,
+      [tipo, contraparte, moneda, monto, montoPagado, fecha, fechaLimite || null, notas || null, completado, req.params.id, req.usuario.id]
+    );
+
+    await client.query('COMMIT');
+    res.json(rows[0]);
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/:id/pago', async (req, res) => {
@@ -123,8 +161,44 @@ router.post('/:id/pago', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  await pool.query(`DELETE FROM prestamos WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
-  res.status(204).end();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const prestamo = await client.query(`SELECT * FROM prestamos WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    if (!prestamo.rows[0]) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Préstamo no encontrado' }); }
+
+    const p = prestamo.rows[0];
+    const montoNeto = parseFloat(p.monto) - parseFloat(p.monto_pagado);
+
+    if (montoNeto > 0) {
+      const txOrig = await client.query(
+        `SELECT cuenta_id FROM transacciones WHERE usuario_id=$1 AND categoria='prestamos' AND descripcion LIKE $2 ORDER BY id ASC LIMIT 1;`,
+        [req.usuario.id, `Préstamo%${p.contraparte}%`]
+      );
+      if (txOrig.rows[0]?.cuenta_id) {
+        const cuentaId = txOrig.rows[0].cuenta_id;
+        const saldoOp = p.tipo === 'dado' ? '+' : '-';
+        await client.query(`UPDATE cuentas SET saldo = saldo ${saldoOp} $1 WHERE id=$2;`, [montoNeto, cuentaId]);
+        const tipoTx = p.tipo === 'dado' ? 'ingreso' : 'gasto';
+        await client.query(
+          `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
+           VALUES ($1,$2,$3,$4,'prestamos',$5, CURRENT_DATE);`,
+          [req.usuario.id, cuentaId, tipoTx, montoNeto, `Cancelación préstamo — ${p.contraparte}`]
+        );
+      }
+    }
+
+    await client.query(`DELETE FROM prestamo_pagos WHERE prestamo_id=$1;`, [req.params.id]);
+    await client.query(`DELETE FROM prestamos WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    await client.query('COMMIT');
+    res.status(204).end();
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;

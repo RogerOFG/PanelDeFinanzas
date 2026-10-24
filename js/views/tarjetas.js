@@ -183,6 +183,7 @@ const TarjetasView = {
           <div style="text-align:right;">
             <div class="detail-row-value">${formatMoney(c.montoTotal, t.moneda)}</div>
             <span class="pill ${completa ? 'pos' : 'tipo'}" style="margin-top:4px;display:inline-block;">${c.cuotasPagadas}/${c.cuotas} cuotas</span>
+            <button class="btn secondary small" style="margin-top:6px;" data-devolucion="${c.id}">Devolución</button>
             ${c.cuotasPagadas === 0 ? `<button class="btn secondary small" style="margin-top:6px;" data-borrar-compra="${c.id}">${ICON_TRASH}</button>` : ''}
           </div>
         </div>`;
@@ -233,6 +234,13 @@ const TarjetasView = {
     container.querySelector('#detalle-back').onclick = () => { this.detalleId = null; this.render(); };
     container.querySelector('#detalle-editar').onclick = () => this.openForm(t);
     container.querySelector('#add-compra-btn').onclick = () => this.openCompraForm(t);
+    container.querySelectorAll('[data-devolucion]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const compra = (t.compras || []).find(c => String(c.id) === String(btn.dataset.devolucion));
+        if (compra) this.openDevolucionForm(t, compra);
+      };
+    });
     container.querySelectorAll('[data-borrar-compra]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -398,6 +406,62 @@ const TarjetasView = {
         this.render();
         UI.toast('Compra eliminada');
       }).catch(err => UI.toast('No se pudo eliminar: ' + err.message, 'danger'));
+    });
+  },
+
+  openDevolucionForm(tarjeta, compra) {
+    const cuentas = Storage.get('cuentas');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+    const porCuota = compra.montoTotal / compra.cuotas;
+    const restante = compra.montoTotal - (compra.cuotasPagadas * porCuota);
+
+    UI.openModal(`Devolución — ${escapeHtml(compra.descripcion)}`, `
+      <form id="devolucion-form">
+        <p class="text-dim mt-0">Saldo pendiente de esta compra: <strong style="color:var(--text);">${formatMoney(restante, tarjeta.moneda)}</strong></p>
+        <div class="form-row">
+          <label>Monto de la devolución</label>
+          ${UI.moneyInputHTML('monto', compra.montoTotal, { required: true })}
+        </div>
+        <p class="text-dim" style="font-size:12px;">Si el monto supera lo pendiente (${formatMoney(restante, tarjeta.moneda)}), el excedente se acreditará a tu cuenta.</p>
+        <div class="form-row">
+          <label>¿A qué cuenta va el excedente? (si aplica)</label>
+          ${UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0]?.value, { id: 'dev-cuenta' })}
+        </div>
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="${todayISO()}">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
+          <button type="submit" class="btn">Aplicar devolución</button>
+        </div>
+      </form>
+    `, {
+      onMount: (root) => {
+        UI.initSelects(root);
+        UI.initMoneyInputs(root);
+        root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
+        root.querySelector('#devolucion-form').onsubmit = (e) => {
+          e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
+          const fd = new FormData(e.target);
+          const monto = parseFloat(fd.get('monto'));
+          const cuentaId = fd.get('cuentaId');
+          const fecha = fd.get('fecha') || todayISO();
+
+          Storage.devolucionTarjeta(tarjeta.id, { compraId: compra.id, monto, cuentaId, fecha }).then(() => {
+            Storage.initFromServer().then(() => {
+              this.render();
+              CuentasView.render();
+              TransaccionesView.render();
+              if (typeof DashboardView !== 'undefined') DashboardView.render();
+            });
+          }).catch(err => UI.toast('No se pudo procesar la devolución: ' + err.message, 'danger'));
+
+          UI.closeModal();
+          UI.toast('Devolución aplicada');
+        };
+      }
     });
   },
 

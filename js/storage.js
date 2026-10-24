@@ -114,14 +114,14 @@ const Storage = {
     return obj;
   },
 
-  update(collection, id, patch, onError) {
+  update(collection, id, patch, onError, onSuccess) {
     const item = this.find(collection, id);
     if (!item) return null;
     const before = { ...item };
     Object.assign(item, patch);
 
     apiFetch(`${ENDPOINTS[collection]}/${id}`, { method: 'PUT', body: JSON.stringify(item) })
-      .then(updated => Object.assign(item, updated))
+      .then(updated => { Object.assign(item, updated); if (onSuccess) onSuccess(updated); })
       .catch(err => {
         Object.assign(item, before);
         if (onError) onError(err);
@@ -167,6 +167,9 @@ const Storage = {
   },
   pagoTarjeta(id, { cuentaId, fecha }) {
     return apiFetch(`/tarjetas/${id}/pago`, { method: 'POST', body: JSON.stringify({ cuentaId, fecha }) });
+  },
+  devolucionTarjeta(id, { compraId, monto, cuentaId, fecha }) {
+    return apiFetch(`/tarjetas/${id}/devolucion`, { method: 'POST', body: JSON.stringify({ compraId, monto, cuentaId, fecha }) });
   },
 
   setConfig(patch) {

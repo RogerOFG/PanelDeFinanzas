@@ -34,6 +34,7 @@ const App = {
 
     this.renderCurrentView();
     this.updateNotifDot();
+    this.requestNotifPermission();
     setTimeout(() => DeudasView.checkReminders(), 600);
     ExchangeRate.refreshIfNeeded();
   },
@@ -51,6 +52,18 @@ const App = {
     })
       .filter(d => d.vencido || (d.dias !== null && d.dias >= 0 && d.dias <= (d.recordatorioDias ?? 3)))
       .sort((a, b) => a.dias - b.dias);
+  },
+
+  requestNotifPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  },
+
+  sendBrowserNotif(title, body) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try { new Notification(title, { body, icon: '/icon-192.png' }); } catch (e) {}
+    }
   },
 
   updateNotifDot() {

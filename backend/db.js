@@ -19,6 +19,7 @@ const pool = new Pool({
 // agregan de forma idempotente al arrancar el backend, así siempre coinciden
 // con lo que esperan las rutas sin importar dónde corra (local o producción).
 async function migrate() {
+  await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_sub TEXT;`);
   await pool.query(`ALTER TABLE deudas ADD COLUMN IF NOT EXISTS categoria TEXT;`);
 
   await pool.query(`

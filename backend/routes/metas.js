@@ -12,8 +12,15 @@ router.get('/', async (req, res) => {
   res.json(rows);
 });
 
+async function cuentaAjena(cuentaId, usuarioId) {
+  if (!cuentaId) return false;
+  const { rows } = await pool.query(`SELECT 1 FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [cuentaId, usuarioId]);
+  return !rows[0];
+}
+
 router.post('/', async (req, res) => {
   const { nombre, moneda, montoObjetivo, montoActual, fechaLimite, cuentaId } = req.body;
+  if (await cuentaAjena(cuentaId, req.usuario.id)) return res.status(400).json({ error: 'Cuenta no encontrada' });
   const completada = (montoActual || 0) >= montoObjetivo;
   const { rows } = await pool.query(
     `INSERT INTO metas_ahorro (usuario_id, nombre, moneda, monto_objetivo, monto_actual, fecha_limite, cuenta_id, completada, prioridad)
@@ -27,6 +34,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { nombre, moneda, montoObjetivo, montoActual, fechaLimite, cuentaId, completada } = req.body;
+  if (await cuentaAjena(cuentaId, req.usuario.id)) return res.status(400).json({ error: 'Cuenta no encontrada' });
   const { rows } = await pool.query(
     `UPDATE metas_ahorro SET nombre=$1, moneda=$2, monto_objetivo=$3, monto_actual=$4,
        fecha_limite=$5, cuenta_id=$6, completada=$7

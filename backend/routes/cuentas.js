@@ -35,6 +35,15 @@ router.delete('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Verificar propiedad antes de tocar filas hijas: los UPDATE de abajo no filtran por usuario.
+    const propia = await client.query(
+      `SELECT id FROM cuentas WHERE id=$1 AND usuario_id=$2 FOR UPDATE;`,
+      [req.params.id, req.usuario.id]
+    );
+    if (!propia.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
     // Desasociar transacciones para conservar el historial sin referencia a la cuenta
     await client.query(`UPDATE transacciones SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
     await client.query(`UPDATE transacciones SET cuenta_destino_id = NULL WHERE cuenta_destino_id=$1;`, [req.params.id]);
@@ -42,6 +51,7 @@ router.delete('/:id', async (req, res) => {
     await client.query(`UPDATE prestamo_pagos SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
     await client.query(`UPDATE pagos_miembro SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
     await client.query(`UPDATE pagos_tarjeta SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
+    await client.query(`UPDATE metas_ahorro SET cuenta_id = NULL WHERE cuenta_id=$1;`, [req.params.id]);
     await client.query(`DELETE FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
     await client.query('COMMIT');
     res.status(204).end();

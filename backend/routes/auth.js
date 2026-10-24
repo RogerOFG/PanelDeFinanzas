@@ -25,18 +25,27 @@ router.post('/google', async (req, res) => {
     return res.status(401).json({ error: 'Token de Google inválido o expirado' });
   }
 
+  if (payload.email_verified !== true || !payload.sub) {
+    return res.status(401).json({ error: 'El correo de esta cuenta de Google no está verificado' });
+  }
+
   const email = payload.email;
   if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(email)) {
     return res.status(403).json({ error: 'Cuenta no autorizada' });
   }
 
+  // La cuenta queda amarrada al primer `sub` de Google que inicia sesión con ese email;
+  // otro `sub` con el mismo email no actualiza la fila y no recibe sesión.
   const result = await pool.query(
-    `INSERT INTO usuarios (email, nombre, picture) VALUES ($1, $2, $3)
-     ON CONFLICT (email) DO UPDATE SET nombre = EXCLUDED.nombre, picture = EXCLUDED.picture
+    `INSERT INTO usuarios (email, nombre, picture, google_sub) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (email) DO UPDATE SET nombre = EXCLUDED.nombre, picture = EXCLUDED.picture,
+       google_sub = COALESCE(usuarios.google_sub, EXCLUDED.google_sub)
+     WHERE usuarios.google_sub IS NULL OR usuarios.google_sub = EXCLUDED.google_sub
      RETURNING id, email, nombre, picture;`,
-    [email, payload.name, payload.picture]
+    [email, payload.name, payload.picture, payload.sub]
   );
   const usuario = result.rows[0];
+  if (!usuario) return res.status(403).json({ error: 'Cuenta no autorizada' });
 
   const token = jwt.sign(
     { uid: usuario.id, email: usuario.email },

@@ -71,6 +71,23 @@ router.post('/:id/compras', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
+router.put('/compras/:compraId', async (req, res) => {
+  const { descripcion, montoTotal, cuotas, cuotasPagadas, tieneIntereses, fecha } = req.body;
+  const compra = await pool.query(
+    `SELECT ct.id FROM compras_tarjeta ct
+     JOIN tarjetas_credito t ON t.id = ct.tarjeta_id
+     WHERE ct.id=$1 AND t.usuario_id=$2;`,
+    [req.params.compraId, req.usuario.id]
+  );
+  if (!compra.rows[0]) return res.status(404).json({ error: 'Compra no encontrada' });
+  const { rows } = await pool.query(
+    `UPDATE compras_tarjeta SET descripcion=$1, monto_total=$2, cuotas=$3, cuotas_pagadas=$4, tiene_intereses=$5, fecha=COALESCE($6, fecha)
+     WHERE id=$7 RETURNING ${COMPRA_FIELDS};`,
+    [descripcion, montoTotal, cuotas, cuotasPagadas ?? 0, !!tieneIntereses, fecha || null, req.params.compraId]
+  );
+  res.json(rows[0]);
+});
+
 router.delete('/compras/:compraId', async (req, res) => {
   const compra = await pool.query(
     `SELECT ct.id FROM compras_tarjeta ct
@@ -103,7 +120,17 @@ router.post('/:id/pago', async (req, res) => {
       [req.params.id]
     );
 
-    const huboUso = pendientes.rows.length > 0;
+    const diaCorte = tarjeta.rows[0].dia_corte;
+    const now = new Date();
+    let cicloInicio = new Date(now.getFullYear(), now.getMonth(), diaCorte);
+    if (cicloInicio > now) cicloInicio = new Date(now.getFullYear(), now.getMonth() - 1, diaCorte);
+    const cicloInicioStr = cicloInicio.toISOString().slice(0, 10);
+
+    const comprasNuevas = await client.query(
+      `SELECT id FROM compras_tarjeta WHERE tarjeta_id=$1 AND fecha >= $2;`,
+      [req.params.id, cicloInicioStr]
+    );
+    const huboUso = comprasNuevas.rows.length > 0;
     const modo = tarjeta.rows[0].cuota_manejo_modo || 'siempre';
     const cobraManejo = modo === 'siempre' || (modo === 'solo_si_usa' && huboUso);
     const cuotaManejo = cobraManejo ? (parseFloat(tarjeta.rows[0].cuota_manejo) || 0) : 0;

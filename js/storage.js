@@ -168,6 +168,9 @@ const Storage = {
   pagoTarjeta(id, { cuentaId, fecha }) {
     return apiFetch(`/tarjetas/${id}/pago`, { method: 'POST', body: JSON.stringify({ cuentaId, fecha }) });
   },
+  editarCompraTarjeta(compraId, data) {
+    return apiFetch(`/tarjetas/compras/${compraId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
   devolucionTarjeta(id, { compraId, monto, cuentaId, fecha }) {
     return apiFetch(`/tarjetas/${id}/devolucion`, { method: 'POST', body: JSON.stringify({ compraId, monto, cuentaId, fecha }) });
   },

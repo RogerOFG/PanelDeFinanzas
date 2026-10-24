@@ -76,10 +76,15 @@ const TarjetasView = {
     return (tarjeta.compras || []).filter(c => c.cuotasPagadas < c.cuotas);
   },
 
+  comprasNuevasEsteCiclo(tarjeta) {
+    const inicio = this.cicloInicio(tarjeta.diaCorte);
+    return (tarjeta.compras || []).filter(c => c.fecha >= inicio);
+  },
+
   cobraManejoEsteCorte(tarjeta) {
     const modo = tarjeta.cuotaManejoModo || 'siempre';
     if (modo === 'nunca') return false;
-    if (modo === 'solo_si_usa') return this.comprasPendientes(tarjeta).length > 0;
+    if (modo === 'solo_si_usa') return this.comprasNuevasEsteCiclo(tarjeta).length > 0;
     return true;
   },
 
@@ -183,8 +188,11 @@ const TarjetasView = {
           <div style="text-align:right;">
             <div class="detail-row-value">${formatMoney(c.montoTotal, t.moneda)}</div>
             <span class="pill ${completa ? 'pos' : 'tipo'}" style="margin-top:4px;display:inline-block;">${c.cuotasPagadas}/${c.cuotas} cuotas</span>
-            <button class="btn secondary small" style="margin-top:6px;" data-devolucion="${c.id}">Devolución</button>
-            <button class="btn secondary small" style="margin-top:6px;" data-borrar-compra="${c.id}">${ICON_TRASH}</button>
+            <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end;">
+              <button class="btn secondary small" data-editar-compra="${c.id}">${ICON_EDIT}</button>
+              <button class="btn secondary small" data-devolucion="${c.id}">Devolución</button>
+              <button class="btn secondary small" data-borrar-compra="${c.id}">${ICON_TRASH}</button>
+            </div>
           </div>
         </div>`;
     };
@@ -234,6 +242,13 @@ const TarjetasView = {
     container.querySelector('#detalle-back').onclick = () => { this.detalleId = null; this.render(); };
     container.querySelector('#detalle-editar').onclick = () => this.openForm(t);
     container.querySelector('#add-compra-btn').onclick = () => this.openCompraForm(t);
+    container.querySelectorAll('[data-editar-compra]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const compra = (t.compras || []).find(c => String(c.id) === String(btn.dataset.editarCompra));
+        if (compra) this.openEditCompraForm(t, compra);
+      };
+    });
     container.querySelectorAll('[data-devolucion]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -406,6 +421,68 @@ const TarjetasView = {
         this.render();
         UI.toast('Compra eliminada');
       }).catch(err => UI.toast('No se pudo eliminar: ' + err.message, 'danger'));
+    });
+  },
+
+  openEditCompraForm(tarjeta, compra) {
+    UI.openModal(`Editar compra`, `
+      <form id="edit-compra-form">
+        <div class="form-row">
+          <label>Descripción</label>
+          <input type="text" name="descripcion" required value="${escapeHtml(compra.descripcion)}">
+        </div>
+        <div class="form-row">
+          <label>Monto total</label>
+          ${UI.moneyInputHTML('montoTotal', compra.montoTotal, { required: true })}
+        </div>
+        <div class="form-row inline">
+          <div>
+            <label>Cuotas totales</label>
+            <input type="number" name="cuotas" min="1" value="${compra.cuotas}" required>
+          </div>
+          <div>
+            <label>Cuotas pagadas</label>
+            <input type="number" name="cuotasPagadas" min="0" value="${compra.cuotasPagadas}" required>
+          </div>
+        </div>
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="tieneIntereses" id="ec-intereses" ${compra.tieneIntereses ? 'checked' : ''}>
+          <label for="ec-intereses" style="margin:0;">Tiene intereses</label>
+        </div>
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="${compra.fecha || ''}">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancel-btn">Cancelar</button>
+          <button type="submit" class="btn">Guardar</button>
+        </div>
+      </form>
+    `, {
+      onMount: (root) => {
+        UI.initMoneyInputs(root);
+        root.querySelector('#cancel-btn').onclick = () => UI.closeModal();
+        root.querySelector('#edit-compra-form').onsubmit = (e) => {
+          e.preventDefault();
+          if (!UI.guardSubmit(e)) return;
+          const fd = new FormData(e.target);
+          const data = {
+            descripcion: fd.get('descripcion'),
+            montoTotal: parseFloat(fd.get('montoTotal')),
+            cuotas: parseInt(fd.get('cuotas'), 10),
+            cuotasPagadas: parseInt(fd.get('cuotasPagadas'), 10),
+            tieneIntereses: fd.get('tieneIntereses') === 'on',
+            fecha: fd.get('fecha') || null
+          };
+          Storage.editarCompraTarjeta(compra.id, data).then((updated) => {
+            const idx = (tarjeta.compras || []).findIndex(c => String(c.id) === String(compra.id));
+            if (idx !== -1) tarjeta.compras[idx] = updated;
+            this.render();
+          }).catch(err => UI.toast('No se pudo actualizar: ' + err.message, 'danger'));
+          UI.closeModal();
+          UI.toast('Compra actualizada');
+        };
+      }
     });
   },
 

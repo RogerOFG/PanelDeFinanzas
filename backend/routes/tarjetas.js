@@ -9,6 +9,46 @@ const COMPRA_FIELDS = `id, tarjeta_id AS "tarjetaId", descripcion, monto_total A
   cuotas, cuotas_pagadas AS "cuotasPagadas", tiene_intereses AS "tieneIntereses",
   categoria, fecha::text`;
 
+function fechaDiaMes(y, m, dia) {
+  const ultimo = new Date(y, m + 1, 0).getDate();
+  const base = new Date(y, m, 1);
+  return new Date(base.getFullYear(), base.getMonth(), Math.min(dia, ultimo));
+}
+
+function aISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function hoyBogota() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+}
+
+// Corte más reciente <= hoy (Bogotá) y el anterior, como 'YYYY-MM-DD'.
+function cortes(diaCorte, hoyISO = hoyBogota()) {
+  const [y, m, d] = hoyISO.split('-').map(Number);
+  const hoy = new Date(y, m - 1, d);
+  let actual = fechaDiaMes(y, m - 1, diaCorte);
+  if (actual > hoy) actual = fechaDiaMes(y, m - 2, diaCorte);
+  const previo = fechaDiaMes(actual.getFullYear(), actual.getMonth() - 1, diaCorte);
+  return { actual: aISO(actual), previo: aISO(previo) };
+}
+
+function valorCuota(c) {
+  const total = parseFloat(c.monto_total);
+  const base = Math.round(total / c.cuotas);
+  return c.cuotas_pagadas === c.cuotas - 1 ? total - base * (c.cuotas - 1) : base;
+}
+
+function validarCompra({ montoTotal, cuotas, cuotasPagadas }) {
+  const monto = parseFloat(montoTotal);
+  const n = Number(cuotas ?? 1);
+  const pagadas = Number(cuotasPagadas ?? 0);
+  if (!(monto > 0)) return 'El monto total debe ser mayor a 0';
+  if (!Number.isInteger(n) || n < 1) return 'Las cuotas deben ser un entero mayor o igual a 1';
+  if (!Number.isInteger(pagadas) || pagadas < 0 || pagadas > n) return 'Las cuotas pagadas deben estar entre 0 y el total de cuotas';
+  return null;
+}
+
 async function conDetalle(tarjeta) {
   const compras = await pool.query(
     `SELECT ${COMPRA_FIELDS} FROM compras_tarjeta WHERE tarjeta_id=$1 ORDER BY fecha DESC, id DESC;`,
@@ -52,8 +92,12 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  await pool.query(`DELETE FROM tarjetas_credito WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
-  res.status(204).end();
+  try {
+    await pool.query(`DELETE FROM tarjetas_credito WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
+    res.status(204).end();
+  } catch (e) {
+    res.status(500).json({ error: 'No se pudo eliminar la tarjeta' });
+  }
 });
 
 // Registra una compra hecha con la tarjeta. No afecta cuentas ni transacciones:
@@ -63,6 +107,8 @@ router.post('/:id/compras', async (req, res) => {
   if (!tarjeta.rows[0]) return res.status(404).json({ error: 'Tarjeta no encontrada' });
 
   const { descripcion, montoTotal, cuotas, tieneIntereses, categoria, fecha } = req.body;
+  const error = validarCompra({ montoTotal, cuotas });
+  if (error) return res.status(400).json({ error });
   const { rows } = await pool.query(
     `INSERT INTO compras_tarjeta (tarjeta_id, descripcion, monto_total, cuotas, tiene_intereses, categoria, fecha)
      VALUES ($1,$2,$3,$4,$5,$6, COALESCE($7, CURRENT_DATE)) RETURNING ${COMPRA_FIELDS};`,
@@ -73,6 +119,8 @@ router.post('/:id/compras', async (req, res) => {
 
 router.put('/compras/:compraId', async (req, res) => {
   const { descripcion, montoTotal, cuotas, cuotasPagadas, tieneIntereses, fecha } = req.body;
+  const error = validarCompra({ montoTotal, cuotas, cuotasPagadas });
+  if (error) return res.status(400).json({ error });
   const compra = await pool.query(
     `SELECT ct.id FROM compras_tarjeta ct
      JOIN tarjetas_credito t ON t.id = ct.tarjeta_id
@@ -115,38 +163,36 @@ router.post('/:id/pago', async (req, res) => {
     const cuenta = await client.query(`SELECT * FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [cuentaId, req.usuario.id]);
     if (!cuenta.rows[0]) throw new Error('Cuenta no encontrada');
 
+    const { actual, previo } = cortes(tarjeta.rows[0].dia_corte);
+
+    const yaPagado = await client.query(`SELECT 1 FROM pagos_tarjeta WHERE tarjeta_id=$1 AND fecha >= $2 LIMIT 1;`, [req.params.id, actual]);
+    if (yaPagado.rows[0]) throw new Error('El extracto de este corte ya fue pagado');
+
     const pendientes = await client.query(
-      `SELECT id, monto_total, cuotas FROM compras_tarjeta WHERE tarjeta_id=$1 AND cuotas_pagadas < cuotas;`,
-      [req.params.id]
+      `SELECT id, monto_total, cuotas, cuotas_pagadas FROM compras_tarjeta
+       WHERE tarjeta_id=$1 AND cuotas_pagadas < cuotas AND fecha <= $2;`,
+      [req.params.id, actual]
     );
 
-    const diaCorte = tarjeta.rows[0].dia_corte;
-    const now = new Date();
-    let cicloInicio = new Date(now.getFullYear(), now.getMonth(), diaCorte);
-    if (cicloInicio > now) cicloInicio = new Date(now.getFullYear(), now.getMonth() - 1, diaCorte);
-    const cicloInicioStr = cicloInicio.toISOString().slice(0, 10);
-
     const comprasNuevas = await client.query(
-      `SELECT id FROM compras_tarjeta WHERE tarjeta_id=$1 AND fecha >= $2;`,
-      [req.params.id, cicloInicioStr]
+      `SELECT id FROM compras_tarjeta WHERE tarjeta_id=$1 AND fecha > $2 AND fecha <= $3;`,
+      [req.params.id, previo, actual]
     );
     const huboUso = comprasNuevas.rows.length > 0;
     const modo = tarjeta.rows[0].cuota_manejo_modo || 'siempre';
     const cobraManejo = modo === 'siempre' || (modo === 'solo_si_usa' && huboUso);
     const cuotaManejo = cobraManejo ? (parseFloat(tarjeta.rows[0].cuota_manejo) || 0) : 0;
     let total = cuotaManejo;
-    for (const c of pendientes.rows) {
-      total += parseFloat(c.monto_total) / c.cuotas;
-    }
+    for (const c of pendientes.rows) total += valorCuota(c);
     total = Math.round(total);
 
-    if (total <= 0) throw new Error('No hay ningún cobro pendiente para esta tarjeta');
+    if (total <= 0) throw new Error('No hay ningún cobro pendiente en este extracto');
 
     const tx = await client.query(
       `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
-       VALUES ($1,$2,'gasto',$3,'tarjeta_credito',$4, COALESCE($5, CURRENT_DATE))
+       VALUES ($1,$2,'gasto',$3,'tarjeta_credito',$4, COALESCE($5, $6::date))
        RETURNING id;`,
-      [req.usuario.id, cuentaId, total, `Pago tarjeta — ${tarjeta.rows[0].nombre}`, fecha || null]
+      [req.usuario.id, cuentaId, total, `Pago tarjeta — ${tarjeta.rows[0].nombre}`, fecha || null, hoyBogota()]
     );
     await client.query(`UPDATE cuentas SET saldo = saldo - $1 WHERE id=$2;`, [total, cuentaId]);
 
@@ -155,9 +201,9 @@ router.post('/:id/pago', async (req, res) => {
     }
 
     await client.query(
-      `INSERT INTO pagos_tarjeta (tarjeta_id, monto, cuenta_id, transaccion_id, fecha)
-       VALUES ($1,$2,$3,$4, COALESCE($5, CURRENT_DATE));`,
-      [req.params.id, total, cuentaId, tx.rows[0].id, fecha || null]
+      `INSERT INTO pagos_tarjeta (tarjeta_id, monto, cuenta_id, transaccion_id, fecha, compras_ids)
+       VALUES ($1,$2,$3,$4, COALESCE($5, $6::date), $7);`,
+      [req.params.id, total, cuentaId, tx.rows[0].id, fecha || null, hoyBogota(), pendientes.rows.map(c => c.id)]
     );
 
     await client.query('COMMIT');
@@ -190,6 +236,9 @@ router.post('/:id/devolucion', async (req, res) => {
     const porCuotaOriginal = parseFloat(c.monto_total) / c.cuotas;
     const yaPagado = c.cuotas_pagadas * porCuotaOriginal;
     const montoDevolucion = parseFloat(monto);
+    if (!(montoDevolucion > 0) || montoDevolucion > parseFloat(c.monto_total)) {
+      throw new Error('El monto de la devolución debe ser mayor a 0 y no superar el total de la compra');
+    }
     const nuevoTotal = parseFloat(c.monto_total) - montoDevolucion;
     const deudaRestante = Math.max(0, nuevoTotal - yaPagado);
 
@@ -206,15 +255,16 @@ router.post('/:id/devolucion', async (req, res) => {
       );
     }
 
-    if (excedente > 0 && cuentaId) {
+    if (excedente > 0) {
+      if (!cuentaId) throw new Error('Selecciona la cuenta donde se acreditará el excedente');
       const cuenta = await client.query(`SELECT * FROM cuentas WHERE id=$1 AND usuario_id=$2;`, [cuentaId, req.usuario.id]);
       if (!cuenta.rows[0]) throw new Error('Cuenta no encontrada');
 
       await client.query(`UPDATE cuentas SET saldo = saldo + $1 WHERE id=$2;`, [excedente, cuentaId]);
       await client.query(
         `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
-         VALUES ($1,$2,'ingreso',$3,'tarjeta_credito',$4, COALESCE($5, CURRENT_DATE));`,
-        [req.usuario.id, cuentaId, excedente, `Devolución tarjeta — ${tarjeta.rows[0].nombre}: ${c.descripcion}`, fecha || null]
+         VALUES ($1,$2,'ingreso',$3,'tarjeta_credito',$4, COALESCE($5, $6::date));`,
+        [req.usuario.id, cuentaId, excedente, `Devolución tarjeta — ${tarjeta.rows[0].nombre}: ${c.descripcion}`, fecha || null, hoyBogota()]
       );
     }
 

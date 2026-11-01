@@ -74,11 +74,11 @@ const DeudasView = {
   ultimoVencimiento(diaPago) {
     const now = new Date();
     const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
-    const esteMes = new Date(y, m, diaPago);
+    const esteMes = fechaDiaMes(y, m, diaPago);
     // Si el diaPago de este mes ya pasó o es hoy, el último vencimiento es este mes
     if (esteMes <= new Date(y, m, day)) return dateToISOLocal(esteMes);
     // Si no, fue el mes pasado
-    return dateToISOLocal(new Date(y, m - 1, diaPago));
+    return dateToISOLocal(fechaDiaMes(y, m - 1, diaPago));
   },
 
   // ¿El último vencimiento que ya pasó fue cubierto por un pago?
@@ -89,7 +89,10 @@ const DeudasView = {
 
   estaAtrasado(d) {
     if (!d.activa || this.pagadoEsteCiclo(d)) return false;
-    const diasUltVenc = daysUntil(this.ultimoVencimiento(d.diaPago));
+    const ultVenc = this.ultimoVencimiento(d.diaPago);
+    // Un vencimiento anterior a la creación de la deuda no cuenta como atraso.
+    if (d.creadoEn && ultVenc < d.creadoEn) return false;
+    const diasUltVenc = daysUntil(ultVenc);
     return diasUltVenc !== null && diasUltVenc < 0 && !this.ultimoVencimientoPagado(d);
   },
 
@@ -404,10 +407,10 @@ const DeudasView = {
 
   proximoPago(diaPago) {
     const now = new Date();
-    let year = now.getFullYear(), month = now.getMonth();
-    let candidate = new Date(year, month, diaPago);
-    if (candidate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
-      candidate = new Date(year, month + 1, diaPago);
+    const year = now.getFullYear(), month = now.getMonth();
+    let candidate = fechaDiaMes(year, month, diaPago);
+    if (candidate < new Date(year, month, now.getDate())) {
+      candidate = fechaDiaMes(year, month + 1, diaPago);
     }
     return dateToISOLocal(candidate);
   },
@@ -415,20 +418,21 @@ const DeudasView = {
   // Fecha en que empezó el ciclo de cobro actual (un mes antes del próximo vencimiento).
   cicloInicio(diaPago) {
     const proximo = new Date(this.proximoPago(diaPago) + 'T00:00:00');
-    return dateToISOLocal(new Date(proximo.getFullYear(), proximo.getMonth() - 1, diaPago));
+    return dateToISOLocal(fechaDiaMes(proximo.getFullYear(), proximo.getMonth() - 1, diaPago));
   },
 
-  // Asigna cada pago (en orden) al vencimiento más cercano aún sin cubrir; si ese ya
-  // está cubierto, al siguiente. Así un pago un poco tarde o un poco temprano cuenta
-  // para el mes correcto en vez de "saltar" al ciclo siguiente.
+  // Asigna cada pago (en orden) al vencimiento más reciente <= su fecha si aún no está
+  // cubierto (pago a tiempo o tarde); si ya lo está, es un adelanto del siguiente
+  // vencimiento sin cubrir. Avanza por (año, mes) lógicos para no saltar meses cortos.
   vencimientosCubiertos(pagos, diaPago) {
     const cubiertos = new Set();
     (pagos || []).map(p => p.fecha).filter(Boolean).sort().forEach(fecha => {
       const f = new Date(fecha + 'T00:00:00');
-      const candidatos = [-1, 0, 1].map(k => new Date(f.getFullYear(), f.getMonth() + k, diaPago));
-      let v = candidatos.reduce((a, b) => Math.abs(b - f) < Math.abs(a - f) ? b : a);
-      while (cubiertos.has(dateToISOLocal(v))) v = new Date(v.getFullYear(), v.getMonth() + 1, diaPago);
-      cubiertos.add(dateToISOLocal(v));
+      let idx = f.getFullYear() * 12 + f.getMonth();
+      const venc = (i) => dateToISOLocal(fechaDiaMes(Math.floor(i / 12), i % 12, diaPago));
+      if (venc(idx) > fecha) idx--;
+      while (cubiertos.has(venc(idx))) idx++;
+      cubiertos.add(venc(idx));
     });
     return cubiertos;
   },
@@ -502,15 +506,20 @@ const DeudasView = {
           deuda.montoPagado = (deuda.montoPagado || 0) + monto;
           if (cuenta) cuenta.saldo -= monto;
 
+          const pagoOptimista = deuda.historialPagos[deuda.historialPagos.length - 1];
           Storage.pagoDeuda(deuda.id, { monto, cuentaId, fecha, soloRegistro }).then(() => {
-            if (!soloRegistro) {
-              Storage.initFromServer().then(() => {
+            Storage.initFromServer().then(() => {
+              DeudasView.render();
+              if (!soloRegistro) {
                 TransaccionesView.render();
                 if (typeof DashboardView !== 'undefined') DashboardView.render();
-              });
-            }
+              }
+            });
           }).catch(err => {
+            deuda.historialPagos = deuda.historialPagos.filter(p => p !== pagoOptimista);
+            deuda.montoPagado = (deuda.montoPagado || 0) - monto;
             if (cuenta) cuenta.saldo += monto;
+            DeudasView.render();
             CuentasView.render();
             UI.toast('No se pudo guardar el pago: ' + err.message, 'danger');
           });
@@ -576,28 +585,29 @@ const DeudasView = {
     return Storage.get('miembros').filter(m => String(m.deudaId) === String(deudaId));
   },
 
+  // Pagado solo si cubrió el ciclo y no arrastra saldo pendiente de meses anteriores.
   pagadoEsteCicloMiembro(miembro, deuda) {
-    return this.cicloCubierto(miembro.pagos, deuda.diaPago);
+    if (!this.cicloCubierto(miembro.pagos, deuda.diaPago)) return false;
+    const debe = this.ciclosTranscurridosMiembro(miembro, deuda) * miembro.montoMensual - this.totalPagadoMiembro(miembro);
+    return debe <= 0;
   },
 
   totalPagadoMiembro(miembro) {
     return (miembro.pagos || []).reduce((s, p) => s + p.monto, 0);
   },
 
-  // Cuántos ciclos de cobro (meses) han empezado desde que se agregó el miembro,
-  // incluyendo el actual — para acumular la deuda en vez de "olvidarla" cada mes.
+  // Cuántos vencimientos (creadoEn <= d <= hoy) han ocurrido desde que se agregó el
+  // miembro — para acumular la deuda en vez de "olvidarla" cada mes.
   ciclosTranscurridosMiembro(miembro, deuda) {
     if (!miembro.creadoEn) return 1;
-    const creado = new Date(miembro.creadoEn + 'T00:00:00');
-    const inicioActual = new Date(this.cicloInicio(deuda.diaPago) + 'T00:00:00');
-    let cursor = new Date(creado.getFullYear(), creado.getMonth(), deuda.diaPago);
-    if (cursor < creado) cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, deuda.diaPago);
+    const hoy = todayISO();
+    const c = new Date(miembro.creadoEn + 'T00:00:00');
+    let idx = c.getFullYear() * 12 + c.getMonth();
+    const venc = (i) => dateToISOLocal(fechaDiaMes(Math.floor(i / 12), i % 12, deuda.diaPago));
+    if (venc(idx) < miembro.creadoEn) idx++;
     let count = 0;
-    while (cursor <= inicioActual) {
-      count++;
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, deuda.diaPago);
-    }
-    return Math.max(count, 1);
+    while (venc(idx) <= hoy) { count++; idx++; }
+    return count;
   },
 
   openMiembros(deudaId) {
@@ -790,20 +800,23 @@ const DeudasView = {
           const cuenta = soloRegistro ? null : Storage.find('cuentas', cuentaId);
 
           // Optimista: refleja el pago (y el ingreso, salvo que ya esté contado) de inmediato.
-          miembro.pagos = [...(miembro.pagos || []), { monto, cuentaId, fecha }];
+          const pagoOptimista = { monto, cuentaId, fecha };
+          miembro.pagos = [...(miembro.pagos || []), pagoOptimista];
           if (cuenta) cuenta.saldo += monto;
 
           Storage.pagoMiembro(miembroId, { monto, cuentaId, fecha, soloRegistro }).then(() => {
-            if (!soloRegistro) {
-              // Refresca transacciones para que el ingreso auto-generado aparezca en la lista.
-              Storage.initFromServer().then(() => {
+            // Refresca desde el servidor (y el ingreso auto-generado en Transacciones).
+            Storage.initFromServer().then(() => {
+              DeudasView.render();
+              if (!soloRegistro) {
                 TransaccionesView.render();
                 if (typeof DashboardView !== 'undefined') DashboardView.render();
-              });
-            }
+              }
+            });
           }).catch(err => {
-            miembro.pagos = miembro.pagos.filter(p => p !== miembro.pagos[miembro.pagos.length - 1]);
+            miembro.pagos = (miembro.pagos || []).filter(p => p !== pagoOptimista);
             if (cuenta) cuenta.saldo -= monto;
+            DeudasView.render();
             CuentasView.render();
             UI.toast('No se pudo registrar el pago: ' + err.message, 'danger');
           });

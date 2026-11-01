@@ -159,20 +159,38 @@ const TransaccionesView = {
     const tx = Storage.find('transacciones', id);
     if (!tx) return;
     const cuenta = Storage.find('cuentas', tx.cuentaId);
+    const destino = tx.tipo === 'transferencia' ? Storage.find('cuentas', tx.cuentaDestinoId) : null;
+    const saldoPrev = cuenta ? cuenta.saldo : null;
+    const saldoDestPrev = destino ? destino.saldo : null;
     if (cuenta) {
       if (tx.tipo === 'ingreso') cuenta.saldo -= tx.monto;
       if (tx.tipo === 'gasto') cuenta.saldo += tx.monto;
       if (tx.tipo === 'transferencia') {
         cuenta.saldo += tx.monto;
-        const destino = Storage.find('cuentas', tx.cuentaDestinoId);
         if (destino) destino.saldo -= tx.monto;
       }
       Storage.save();
     }
-    Storage.remove('transacciones', id);
+    const rerender = () => {
+      this.render();
+      if (typeof CuentasView !== 'undefined') CuentasView.render();
+      if (typeof DeudasView !== 'undefined') DeudasView.render();
+      if (typeof PrestamosView !== 'undefined') PrestamosView.render();
+      if (typeof TarjetasView !== 'undefined') TarjetasView.render();
+      if (typeof DashboardView !== 'undefined') DashboardView.render();
+    };
+    Storage.remove('transacciones', id)
+      .then(() => {
+        UI.toast('Transacción eliminada');
+        return Storage.initFromServer().then(rerender);
+      })
+      .catch(() => {
+        if (cuenta) cuenta.saldo = saldoPrev;
+        if (destino) destino.saldo = saldoDestPrev;
+        rerender();
+      });
     this.render();
     if (typeof DashboardView !== 'undefined') DashboardView.render();
-    UI.toast('Transacción eliminada');
   },
 
   openForm(id, tipoDefault) {

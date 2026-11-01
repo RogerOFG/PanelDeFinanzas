@@ -4,7 +4,7 @@ const router = express.Router();
 
 const SELECT_FIELDS = `id, nombre, tipo, categoria, moneda, monto, monto_total AS "montoTotal",
   monto_pagado AS "montoPagado", tipo_pago AS "tipoPago", dia_pago AS "diaPago",
-  recordatorio_dias AS "recordatorioDias", activa, notas`;
+  recordatorio_dias AS "recordatorioDias", activa, notas, creado_en::text AS "creadoEn"`;
 
 router.get('/', async (req, res) => {
   const { rows } = await pool.query(
@@ -90,9 +90,29 @@ router.post('/:id/pago', async (req, res) => {
   }
 });
 
+// Borra la deuda con sus miembros y pagos; las transacciones generadas se conservan.
 router.delete('/:id', async (req, res) => {
-  await pool.query(`DELETE FROM deudas WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
-  res.status(204).end();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const deuda = await client.query(`SELECT id FROM deudas WHERE id=$1 AND usuario_id=$2 FOR UPDATE;`, [req.params.id, req.usuario.id]);
+    if (!deuda.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Deuda no encontrada' });
+    }
+    const id = deuda.rows[0].id;
+    await client.query(`DELETE FROM pagos_miembro WHERE miembro_id IN (SELECT id FROM miembros_suscripcion WHERE deuda_id=$1);`, [id]);
+    await client.query(`DELETE FROM miembros_suscripcion WHERE deuda_id=$1;`, [id]);
+    await client.query(`DELETE FROM deuda_pagos WHERE deuda_id=$1;`, [id]);
+    await client.query(`DELETE FROM deudas WHERE id=$1 AND usuario_id=$2;`, [id, req.usuario.id]);
+    await client.query('COMMIT');
+    res.status(204).end();
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;

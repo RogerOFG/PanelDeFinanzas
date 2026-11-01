@@ -74,8 +74,9 @@ const HistorialView = {
       const m = meses[ym];
       m.cantidadMovimientos++;
 
-      if (t.tipo === 'ingreso') m.ingresos += monto;
-      else if (t.tipo === 'gasto') m.gastos += monto;
+      const excluida = t.categoria === 'ajuste';
+      if (t.tipo === 'ingreso' && !excluida) m.ingresos += monto;
+      else if (t.tipo === 'gasto' && !excluida) m.gastos += monto;
 
       if (t.categoria && t.tipo !== 'transferencia') {
         if (!m.categorias[t.categoria]) m.categorias[t.categoria] = { categoria: t.categoria, totalIngreso: 0, totalGasto: 0, cantidad: 0 };

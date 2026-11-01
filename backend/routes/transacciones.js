@@ -112,6 +112,7 @@ router.put('/:id', async (req, res) => {
         [diff, r.prestamo_id, req.usuario.id]
       );
     }
+    await client.query(`UPDATE pagos_tarjeta SET fecha=$1, monto=$2 WHERE transaccion_id=$3;`, [nuevaFecha, monto, req.params.id]);
 
     await client.query('COMMIT');
     res.json(rows[0]);
@@ -132,7 +133,28 @@ router.delete('/:id', async (req, res) => {
 
     await revertirEfecto(client, tx.rows[0]);
 
-    await client.query(`DELETE FROM transacciones WHERE id=$1;`, [req.params.id]);
+    const txId = req.params.id;
+    const uid = req.usuario.id;
+    const dp = await client.query(`DELETE FROM deuda_pagos WHERE transaccion_id=$1 RETURNING deuda_id, monto;`, [txId]);
+    for (const r of dp.rows) {
+      await client.query(`UPDATE deudas SET monto_pagado = monto_pagado - $1 WHERE id=$2 AND usuario_id=$3;`, [r.monto, r.deuda_id, uid]);
+    }
+    await client.query(`DELETE FROM pagos_miembro WHERE transaccion_id=$1;`, [txId]);
+    const pp = await client.query(`DELETE FROM prestamo_pagos WHERE transaccion_id=$1 RETURNING prestamo_id, monto;`, [txId]);
+    for (const r of pp.rows) {
+      await client.query(
+        `UPDATE prestamos SET monto_pagado = monto_pagado - $1, completado = (monto_pagado - $1) >= monto WHERE id=$2 AND usuario_id=$3;`,
+        [r.monto, r.prestamo_id, uid]
+      );
+    }
+    const pt = await client.query(`DELETE FROM pagos_tarjeta WHERE transaccion_id=$1 RETURNING compras_ids;`, [txId]);
+    for (const r of pt.rows) {
+      if (r.compras_ids && r.compras_ids.length) {
+        await client.query(`UPDATE compras_tarjeta SET cuotas_pagadas = GREATEST(0, cuotas_pagadas - 1) WHERE id = ANY($1::int[]);`, [r.compras_ids]);
+      }
+    }
+
+    await client.query(`DELETE FROM transacciones WHERE id=$1 AND usuario_id=$2;`, [txId, uid]);
     await client.query('COMMIT');
     res.status(204).end();
   } catch (e) {

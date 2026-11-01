@@ -84,21 +84,28 @@ const PrestamosView = {
     container.querySelectorAll('[data-pago]').forEach(b => b.onclick = () => this.openPago(b.dataset.pago));
     container.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
       UI.confirmAction('¿Eliminar este préstamo? Se revertirá el saldo pendiente a la cuenta original.', () => {
-        Storage.remove('prestamos', b.dataset.del);
-        this.render();
-        Storage.initFromServer().then(() => {
-          this.render();
-          CuentasView.render();
-          TransaccionesView.render();
-          if (typeof DashboardView !== 'undefined') DashboardView.render();
-        });
-        UI.toast('Préstamo eliminado');
+        this.eliminar(b.dataset.del);
       });
     });
   },
 
+  eliminar(id) {
+    const p = Storage.remove('prestamos', id);
+    this.render();
+    return p.then(() => {
+      UI.toast('Préstamo eliminado');
+      return Storage.initFromServer();
+    }).then(() => {
+      this.render();
+      CuentasView.render();
+      TransaccionesView.render();
+      if (typeof DashboardView !== 'undefined') DashboardView.render();
+    }).catch(() => this.render());
+  },
+
   openForm(id) {
     const prestamo = id ? Storage.find('prestamos', id) : null;
+    const tienePagos = !!(prestamo && (prestamo.pagos || []).length);
     const cuentas = Storage.get('cuentas');
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
 
@@ -110,6 +117,7 @@ const PrestamosView = {
             { value: 'dado', label: 'Yo presté dinero' },
             { value: 'recibido', label: 'Me prestaron dinero' }
           ], prestamo?.tipo || 'dado')}
+          ${tienePagos ? '<small class="text-dim">No se puede cambiar el tipo: el préstamo tiene abonos.</small>' : ''}
         </div>
         <div class="form-row">
           <label>Contraparte (nombre)</label>
@@ -123,10 +131,12 @@ const PrestamosView = {
           <label>Monto total</label>
           ${UI.moneyInputHTML('monto', prestamo?.monto ?? '', { required: true })}
         </div>
+        ${!prestamo ? `
         <div class="form-row">
           <label>Monto ya pagado</label>
-          ${UI.moneyInputHTML('montoPagado', prestamo?.montoPagado ?? 0)}
-        </div>
+          ${UI.moneyInputHTML('montoPagado', 0)}
+        </div>` : `
+        <p class="text-dim">Pagado: ${formatMoney(prestamo.montoPagado || 0, prestamo.moneda)}</p>`}
         ${!prestamo ? `
         <div class="form-row checkbox-row">
           <input type="checkbox" name="soloRegistro" id="pf-solo-registro">
@@ -158,6 +168,7 @@ const PrestamosView = {
       </form>
     `, {
       onMount: (root) => {
+        if (tienePagos) root.querySelector('[name="tipo"]').disabled = true;
         UI.initSelects(root);
         UI.initMoneyInputs(root);
 
@@ -184,9 +195,9 @@ const PrestamosView = {
           e.preventDefault();
           if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
-          const tipo = fd.get('tipo');
+          const tipo = tienePagos ? prestamo.tipo : (fd.get('tipo') || prestamo?.tipo);
           const monto = parseFloat(fd.get('monto'));
-          const montoPagado = parseFloat(fd.get('montoPagado')) || 0;
+          const montoPagado = prestamo ? (prestamo.montoPagado || 0) : (parseFloat(fd.get('montoPagado')) || 0);
           const soloRegistro = !prestamo && fd.get('soloRegistro') === 'on';
           const cuentaId = (!prestamo && !soloRegistro) ? fd.get('cuentaId') : null;
           const cuenta = cuentaId ? Storage.find('cuentas', cuentaId) : null;
@@ -300,23 +311,32 @@ const PrestamosView = {
           const fecha = fd.get('fecha') || todayISO();
           const cuenta = soloRegistro ? null : Storage.find('cuentas', cuentaId);
 
+          const prevPagado = prestamo.montoPagado;
+          const prevCompletado = prestamo.completado;
+          const prevPagos = prestamo.pagos;
           const nuevoPagado = prestamo.montoPagado + monto;
           prestamo.montoPagado = nuevoPagado;
           prestamo.completado = nuevoPagado >= prestamo.monto;
           prestamo.pagos = [...(prestamo.pagos || []), { monto, fecha }];
           if (cuenta) cuenta.saldo += esDado ? monto : -monto;
 
-          Storage.pagoPrestamo(prestamo.id, { monto, cuentaId, fecha, soloRegistro }).then(() => {
+          const pagoP = Storage.pagoPrestamo(prestamo.id, { monto, cuentaId, fecha, soloRegistro }).then(() => {
             if (!soloRegistro) {
               Storage.initFromServer().then(() => {
                 TransaccionesView.render();
                 if (typeof DashboardView !== 'undefined') DashboardView.render();
               });
             }
+            return true;
           }).catch(err => {
+            prestamo.montoPagado = prevPagado;
+            prestamo.completado = prevCompletado;
+            prestamo.pagos = prevPagos;
             if (cuenta) cuenta.saldo -= esDado ? monto : -monto;
+            PrestamosView.render();
             CuentasView.render();
             UI.toast('No se pudo guardar el pago: ' + err.message, 'danger');
+            return false;
           });
 
           UI.closeModal();
@@ -326,9 +346,7 @@ const PrestamosView = {
             UI.toast('Préstamo saldado por completo');
             setTimeout(() => {
               UI.confirmAction('Este préstamo ya está saldado. ¿Deseas eliminarlo del historial?', () => {
-                Storage.remove('prestamos', prestamo.id);
-                PrestamosView.render();
-                UI.toast('Préstamo eliminado');
+                pagoP.then(ok => { if (ok) PrestamosView.eliminar(prestamo.id); });
               });
             }, 400);
           } else {

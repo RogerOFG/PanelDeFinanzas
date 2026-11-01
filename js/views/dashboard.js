@@ -79,7 +79,7 @@ const DashboardView = {
 
     const now = new Date();
     const mesActual = dateToISOLocal(now).slice(0, 7);
-    const txMes = transacciones.filter(t => t.fecha.startsWith(mesActual));
+    const txMes = transacciones.filter(t => t.fecha.startsWith(mesActual) && t.categoria !== 'ajuste');
     const ingresosMes = txMes.filter(t => t.tipo === 'ingreso').reduce((s, t) => s + toBaseCurrency(t.monto, Storage.find('cuentas', t.cuentaId)?.moneda), 0);
     const gastosMes = txMes.filter(t => t.tipo === 'gasto').reduce((s, t) => s + toBaseCurrency(t.monto, Storage.find('cuentas', t.cuentaId)?.moneda), 0);
     const balanceMes = ingresosMes - gastosMes;

@@ -53,18 +53,24 @@ const TarjetasView = {
   // Próxima fecha de corte a partir de hoy.
   proximoCorte(diaCorte) {
     const now = new Date();
-    let candidate = new Date(now.getFullYear(), now.getMonth(), diaCorte);
-    if (candidate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
-      candidate = new Date(now.getFullYear(), now.getMonth() + 1, diaCorte);
-    }
+    const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let candidate = fechaDiaMes(now.getFullYear(), now.getMonth(), diaCorte);
+    if (candidate < hoy) candidate = fechaDiaMes(now.getFullYear(), now.getMonth() + 1, diaCorte);
     return dateToISOLocal(candidate);
   },
 
-  cicloInicio(diaCorte) {
+  // Corte más reciente <= hoy y el anterior a ese.
+  cortes(diaCorte) {
     const now = new Date();
-    let due = new Date(now.getFullYear(), now.getMonth(), diaCorte);
-    if (due > now) due = new Date(now.getFullYear(), now.getMonth() - 1, diaCorte);
-    return dateToISOLocal(due);
+    const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let actual = fechaDiaMes(now.getFullYear(), now.getMonth(), diaCorte);
+    if (actual > hoy) actual = fechaDiaMes(now.getFullYear(), now.getMonth() - 1, diaCorte);
+    const previo = fechaDiaMes(actual.getFullYear(), actual.getMonth() - 1, diaCorte);
+    return { actual: dateToISOLocal(actual), previo: dateToISOLocal(previo) };
+  },
+
+  cicloInicio(diaCorte) {
+    return this.cortes(diaCorte).actual;
   },
 
   pagadoEsteCiclo(tarjeta) {
@@ -72,13 +78,22 @@ const TarjetasView = {
     return (tarjeta.historialPagos || []).some(p => p.fecha >= inicio);
   },
 
+  enExtractoActual(tarjeta, c) {
+    return c.cuotasPagadas < c.cuotas && c.fecha <= this.cicloInicio(tarjeta.diaCorte);
+  },
+
   comprasPendientes(tarjeta) {
-    return (tarjeta.compras || []).filter(c => c.cuotasPagadas < c.cuotas);
+    return (tarjeta.compras || []).filter(c => this.enExtractoActual(tarjeta, c));
+  },
+
+  valorCuota(c) {
+    const base = Math.round(c.montoTotal / c.cuotas);
+    return c.cuotasPagadas === c.cuotas - 1 ? c.montoTotal - base * (c.cuotas - 1) : base;
   },
 
   comprasNuevasEsteCiclo(tarjeta) {
-    const inicio = this.cicloInicio(tarjeta.diaCorte);
-    return (tarjeta.compras || []).filter(c => c.fecha >= inicio);
+    const { actual, previo } = this.cortes(tarjeta.diaCorte);
+    return (tarjeta.compras || []).filter(c => c.fecha > previo && c.fecha <= actual);
   },
 
   cobraManejoEsteCorte(tarjeta) {
@@ -90,7 +105,7 @@ const TarjetasView = {
 
   totalPorPagar(tarjeta) {
     const cuotaManejo = this.cobraManejoEsteCorte(tarjeta) ? (parseFloat(tarjeta.cuotaManejo) || 0) : 0;
-    const cuotas = this.comprasPendientes(tarjeta).reduce((sum, c) => sum + c.montoTotal / c.cuotas, 0);
+    const cuotas = this.comprasPendientes(tarjeta).reduce((sum, c) => sum + this.valorCuota(c), 0);
     return Math.round(cuotaManejo + cuotas);
   },
 
@@ -174,14 +189,15 @@ const TarjetasView = {
     const pagado = this.pagadoEsteCiclo(t);
 
     const filaCompra = (c) => {
-      const porCuota = c.montoTotal / c.cuotas;
+      const porCuota = Math.round(c.montoTotal / c.cuotas);
       const completa = c.cuotasPagadas >= c.cuotas;
+      const proximo = !completa && !this.enExtractoActual(t, c);
       return `
         <div class="detail-row">
           <div class="detail-row-label">
             ${ICON_NOTE}
             <div>
-              <div>${escapeHtml(c.descripcion)}${c.tieneIntereses ? ' <span class="pill warn">Con intereses</span>' : ''}</div>
+              <div>${escapeHtml(c.descripcion)}${c.tieneIntereses ? ' <span class="pill warn">Con intereses</span>' : ''}${proximo ? ' <span class="pill tipo">Próximo extracto</span>' : ''}</div>
               <div class="text-dim" style="font-size:11px;margin-top:2px;">${formatDate(c.fecha)} · ${formatMoney(porCuota, t.moneda)}/cuota</div>
             </div>
           </div>
@@ -403,12 +419,16 @@ const TarjetasView = {
             tieneIntereses: fd.get('tieneIntereses') === 'on',
             fecha: fd.get('fecha') || todayISO()
           };
+          if (!(compra.montoTotal > 0) || !(compra.cuotas >= 1)) {
+            UI.toast('El monto debe ser mayor a 0 y las cuotas al menos 1', 'danger');
+            return;
+          }
           Storage.agregarCompraTarjeta(tarjeta.id, compra).then((creada) => {
             tarjeta.compras = [creada, ...(tarjeta.compras || [])];
+            UI.closeModal();
             this.render();
+            UI.toast('Compra registrada');
           }).catch(err => UI.toast('No se pudo registrar la compra: ' + err.message, 'danger'));
-          UI.closeModal();
-          UI.toast('Compra registrada');
         };
       }
     });
@@ -442,7 +462,7 @@ const TarjetasView = {
           </div>
           <div>
             <label>Cuotas pagadas</label>
-            <input type="number" name="cuotasPagadas" min="0" value="${compra.cuotasPagadas}" required>
+            <input type="number" name="cuotasPagadas" min="0" max="${compra.cuotas}" step="1" value="${compra.cuotasPagadas}" required>
           </div>
         </div>
         <div class="form-row checkbox-row">
@@ -474,13 +494,17 @@ const TarjetasView = {
             tieneIntereses: fd.get('tieneIntereses') === 'on',
             fecha: fd.get('fecha') || null
           };
+          if (!(data.montoTotal > 0) || !(data.cuotas >= 1) || !(data.cuotasPagadas >= 0) || data.cuotasPagadas > data.cuotas) {
+            UI.toast('Revisa los datos: monto > 0, cuotas ≥ 1 y cuotas pagadas entre 0 y el total', 'danger');
+            return;
+          }
           Storage.editarCompraTarjeta(compra.id, data).then((updated) => {
             const idx = (tarjeta.compras || []).findIndex(c => String(c.id) === String(compra.id));
             if (idx !== -1) tarjeta.compras[idx] = updated;
+            UI.closeModal();
             this.render();
+            UI.toast('Compra actualizada');
           }).catch(err => UI.toast('No se pudo actualizar: ' + err.message, 'danger'));
-          UI.closeModal();
-          UI.toast('Compra actualizada');
         };
       }
     });
@@ -491,7 +515,6 @@ const TarjetasView = {
     const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
     const porCuota = compra.montoTotal / compra.cuotas;
     const yaPagado = compra.cuotasPagadas * porCuota;
-    const restante = compra.montoTotal - yaPagado;
 
     UI.openModal(`Devolución — ${escapeHtml(compra.descripcion)}`, `
       <form id="devolucion-form">
@@ -499,6 +522,7 @@ const TarjetasView = {
         <div class="form-row">
           <label>Monto de la devolución</label>
           ${UI.moneyInputHTML('monto', compra.montoTotal, { required: true })}
+          <div class="text-dim" style="font-size:11px;margin-top:4px;">Máximo ${formatMoney(compra.montoTotal, tarjeta.moneda)}</div>
         </div>
         <p class="text-dim" style="font-size:12px;">Si ya pagaste cuotas y la devolución cubre el total, se te acreditará lo que pagaste de más a tu cuenta.</p>
         <div class="form-row">
@@ -526,8 +550,14 @@ const TarjetasView = {
           const monto = parseFloat(fd.get('monto'));
           const cuentaId = fd.get('cuentaId');
           const fecha = fd.get('fecha') || todayISO();
+          if (!(monto > 0) || monto > compra.montoTotal) {
+            UI.toast(`El monto debe ser mayor a 0 y no superar ${formatMoney(compra.montoTotal, tarjeta.moneda)}`, 'danger');
+            return;
+          }
 
           Storage.devolucionTarjeta(tarjeta.id, { compraId: compra.id, monto, cuentaId, fecha }).then(() => {
+            UI.closeModal();
+            UI.toast('Devolución aplicada');
             Storage.initFromServer().then(() => {
               this.render();
               CuentasView.render();
@@ -535,9 +565,6 @@ const TarjetasView = {
               if (typeof DashboardView !== 'undefined') DashboardView.render();
             });
           }).catch(err => UI.toast('No se pudo procesar la devolución: ' + err.message, 'danger'));
-
-          UI.closeModal();
-          UI.toast('Devolución aplicada');
         };
       }
     });

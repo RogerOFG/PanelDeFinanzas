@@ -172,10 +172,15 @@ const MetasView = {
           if (!UI.guardSubmit(e)) return;
           const fd = new FormData(e.target);
           const monto = parseFloat(fd.get('monto'));
+          const previo = { montoActual: meta.montoActual, completada: meta.completada };
           const nuevoMonto = meta.montoActual + monto;
           meta.montoActual = nuevoMonto;
           meta.completada = nuevoMonto >= meta.montoObjetivo;
-          Storage.aporteMeta(meta.id, monto).catch(err => UI.toast('No se pudo guardar el aporte: ' + err.message, 'danger'));
+          Storage.aporteMeta(meta.id, monto).catch(err => {
+            Object.assign(meta, previo);
+            MetasView.render();
+            UI.toast('No se pudo guardar el aporte: ' + err.message, 'danger');
+          });
           UI.closeModal();
           MetasView.render();
           const pct = Math.round((nuevoMonto / meta.montoObjetivo) * 100);

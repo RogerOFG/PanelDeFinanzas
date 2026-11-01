@@ -2,6 +2,19 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
+// Cuenta del movimiento original del préstamo: enlazada o, para préstamos antiguos, búsqueda por descripción.
+async function cuentaOriginal(client, p, usuarioId) {
+  if (p.cuenta_id) return p.cuenta_id;
+  const esc = String(p.contraparte).replace(/[\\%_]/g, (c) => '\\' + c);
+  const desc = p.tipo === 'dado' ? `Préstamo a ${esc}` : `Préstamo de ${esc}`;
+  const r = await client.query(
+    `SELECT t.cuenta_id FROM transacciones t JOIN cuentas c ON c.id = t.cuenta_id AND c.usuario_id = $1
+     WHERE t.usuario_id=$1 AND t.categoria='prestamos' AND t.descripcion LIKE $2 ORDER BY t.id ASC LIMIT 1;`,
+    [usuarioId, desc]
+  );
+  return r.rows[0]?.cuenta_id || null;
+}
+
 const SELECT_FIELDS = `id, tipo, contraparte, moneda, monto, monto_pagado AS "montoPagado",
   fecha, fecha_limite AS "fechaLimite", notas, completado`;
 
@@ -38,11 +51,12 @@ router.post('/', async (req, res) => {
       // dado → yo presté → gasto (sale de mi cuenta); recibido → me prestaron → ingreso (entra a mi cuenta)
       const tipoTx = tipo === 'dado' ? 'gasto' : 'ingreso';
       const desc = tipo === 'dado' ? `Préstamo a ${contraparte}` : `Préstamo de ${contraparte}`;
-      await client.query(
+      const tx = await client.query(
         `INSERT INTO transacciones (usuario_id, cuenta_id, tipo, monto, categoria, descripcion, fecha)
-         VALUES ($1,$2,$3,$4,'prestamos',$5, COALESCE($6, CURRENT_DATE));`,
+         VALUES ($1,$2,$3,$4,'prestamos',$5, COALESCE($6, CURRENT_DATE)) RETURNING id;`,
         [req.usuario.id, cuentaId, tipoTx, monto, desc, fecha || null]
       );
+      await client.query(`UPDATE prestamos SET cuenta_id=$1, transaccion_id=$2 WHERE id=$3;`, [cuentaId, tx.rows[0].id, rows[0].id]);
       const saldoOp = tipo === 'dado' ? '-' : '+';
       await client.query(`UPDATE cuentas SET saldo = saldo ${saldoOp} $1 WHERE id=$2;`, [monto, cuentaId]);
     }
@@ -58,8 +72,7 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { tipo, contraparte, moneda, monto, montoPagado, fecha, fechaLimite, notas } = req.body;
-  const completado = (montoPagado || 0) >= monto;
+  const { tipo, contraparte, moneda, monto, fecha, fechaLimite, notas } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -67,18 +80,20 @@ router.put('/:id', async (req, res) => {
     const prev = await client.query(`SELECT * FROM prestamos WHERE id=$1 AND usuario_id=$2;`, [req.params.id, req.usuario.id]);
     if (!prev.rows[0]) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Préstamo no encontrado' }); }
 
-    const montoAnterior = parseFloat(prev.rows[0].monto);
+    const p = prev.rows[0];
+    if (tipo && tipo !== p.tipo) {
+      const np = await client.query(`SELECT 1 FROM prestamo_pagos WHERE prestamo_id=$1 LIMIT 1;`, [p.id]);
+      if (np.rows[0] || p.transaccion_id || p.cuenta_id) throw new Error('No se puede cambiar el tipo de un préstamo con pagos o movimiento asociado');
+    }
+
+    const montoAnterior = parseFloat(p.monto);
     const montoNuevo = parseFloat(monto);
     const diff = montoNuevo - montoAnterior;
 
     if (diff !== 0) {
-      const txOrig = await client.query(
-        `SELECT cuenta_id FROM transacciones WHERE usuario_id=$1 AND categoria='prestamos' AND descripcion LIKE $2 ORDER BY id ASC LIMIT 1;`,
-        [req.usuario.id, `Préstamo%${prev.rows[0].contraparte}%`]
-      );
-      if (txOrig.rows[0]?.cuenta_id) {
-        const cuentaId = txOrig.rows[0].cuenta_id;
-        const tipoP = prev.rows[0].tipo;
+      const cuentaId = await cuentaOriginal(client, p, req.usuario.id);
+      if (cuentaId) {
+        const tipoP = p.tipo;
         const saldoOp = tipoP === 'dado' ? '-' : '+';
         await client.query(`UPDATE cuentas SET saldo = saldo ${saldoOp} $1 WHERE id=$2;`, [diff, cuentaId]);
         const tipoTx = tipoP === 'dado' ? 'gasto' : 'ingreso';
@@ -92,14 +107,15 @@ router.put('/:id', async (req, res) => {
     }
 
     const { rows } = await client.query(
-      `UPDATE prestamos SET tipo=$1, contraparte=$2, moneda=$3, monto=$4, monto_pagado=$5,
-         fecha=$6, fecha_limite=$7, notas=$8, completado=$9
-       WHERE id=$10 AND usuario_id=$11 RETURNING ${SELECT_FIELDS};`,
-      [tipo, contraparte, moneda, monto, montoPagado, fecha, fechaLimite || null, notas || null, completado, req.params.id, req.usuario.id]
+      `UPDATE prestamos SET tipo=$1, contraparte=$2, moneda=$3, monto=$4,
+         fecha=COALESCE($5, fecha), fecha_limite=$6, notas=$7, completado = monto_pagado >= $4
+       WHERE id=$8 AND usuario_id=$9 RETURNING ${SELECT_FIELDS};`,
+      [tipo || p.tipo, contraparte, moneda, monto, fecha || null, fechaLimite || null, notas || null, req.params.id, req.usuario.id]
     );
 
+    const pagos = await client.query(`SELECT monto, fecha FROM prestamo_pagos WHERE prestamo_id=$1 ORDER BY fecha ASC;`, [p.id]);
     await client.query('COMMIT');
-    res.json(rows[0]);
+    res.json({ ...rows[0], pagos: pagos.rows });
   } catch (e) {
     await client.query('ROLLBACK');
     res.status(400).json({ error: e.message });
@@ -169,15 +185,11 @@ router.delete('/:id', async (req, res) => {
     if (!prestamo.rows[0]) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Préstamo no encontrado' }); }
 
     const p = prestamo.rows[0];
-    const montoNeto = parseFloat(p.monto) - parseFloat(p.monto_pagado);
+    const montoNeto = Math.max(0, parseFloat(p.monto) - parseFloat(p.monto_pagado));
 
     if (montoNeto > 0) {
-      const txOrig = await client.query(
-        `SELECT cuenta_id FROM transacciones WHERE usuario_id=$1 AND categoria='prestamos' AND descripcion LIKE $2 ORDER BY id ASC LIMIT 1;`,
-        [req.usuario.id, `Préstamo%${p.contraparte}%`]
-      );
-      if (txOrig.rows[0]?.cuenta_id) {
-        const cuentaId = txOrig.rows[0].cuenta_id;
+      const cuentaId = await cuentaOriginal(client, p, req.usuario.id);
+      if (cuentaId) {
         const saldoOp = p.tipo === 'dado' ? '+' : '-';
         await client.query(`UPDATE cuentas SET saldo = saldo ${saldoOp} $1 WHERE id=$2;`, [montoNeto, cuentaId]);
         const tipoTx = p.tipo === 'dado' ? 'ingreso' : 'gasto';

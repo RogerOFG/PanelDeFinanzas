@@ -19,6 +19,14 @@ function toBaseCurrency(monto, moneda) {
 // Convierte un objeto Date a 'YYYY-MM-DD' usando la fecha LOCAL del navegador
 // (no UTC) — toISOString() se adelanta un día para husos negativos como
 // Colombia (UTC-5) cuando ya es de noche.
+// Fecha del día `dia` en el mes (y, m), limitado al último día del mes: el 31 en
+// noviembre es el 30, no el 1-dic. `m` puede salirse de 0-11 (se normaliza como Date).
+function fechaDiaMes(y, m, dia) {
+  const ultimo = new Date(y, m + 1, 0).getDate();
+  const base = new Date(y, m, 1);
+  return new Date(base.getFullYear(), base.getMonth(), Math.min(dia, ultimo));
+}
+
 function dateToISOLocal(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');

@@ -63,6 +63,17 @@ async function migrate() {
   await pool.query(`ALTER TABLE prestamo_pagos ADD COLUMN IF NOT EXISTS cuenta_id INTEGER REFERENCES cuentas(id);`);
   await pool.query(`ALTER TABLE prestamo_pagos ADD COLUMN IF NOT EXISTS transaccion_id INTEGER REFERENCES transacciones(id);`);
   await pool.query(`ALTER TABLE prestamo_pagos ADD COLUMN IF NOT EXISTS fecha DATE DEFAULT CURRENT_DATE;`);
+
+  // Filas existentes quedan en NULL (sin restricción de "creada después de"); las nuevas toman la fecha de hoy.
+  await pool.query(`ALTER TABLE deudas ADD COLUMN IF NOT EXISTS creado_en DATE;`);
+  await pool.query(`ALTER TABLE deudas ALTER COLUMN creado_en SET DEFAULT CURRENT_DATE;`);
+
+  // Enlace directo del préstamo con su movimiento original (antes se buscaba por texto).
+  await pool.query(`ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS cuenta_id INTEGER REFERENCES cuentas(id) ON DELETE SET NULL;`);
+  await pool.query(`ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS transaccion_id INTEGER REFERENCES transacciones(id) ON DELETE SET NULL;`);
+
+  // Compras a las que un pago de extracto les sumó una cuota, para poder revertirlo.
+  await pool.query(`ALTER TABLE pagos_tarjeta ADD COLUMN IF NOT EXISTS compras_ids INTEGER[] NOT NULL DEFAULT '{}';`);
 }
 
 module.exports = pool;

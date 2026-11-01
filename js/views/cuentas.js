@@ -147,7 +147,14 @@ const CuentasView = {
             notas: fd.get('notas').trim()
           };
           if (cuenta) {
-            Storage.update('cuentas', cuenta.id, data);
+            data.saldoEditado = data.saldo !== (Number(cuenta.saldo) || 0);
+            if (!data.saldoEditado) delete data.saldo;
+            Storage.update('cuentas', cuenta.id, data, null, async () => {
+              await Storage.initFromServer();
+              CuentasView.render();
+              if (typeof TransaccionesView !== 'undefined') TransaccionesView.render();
+              if (typeof DashboardView !== 'undefined') DashboardView.render();
+            });
             UI.toast('Cuenta actualizada');
           } else {
             data.creada = todayISO();

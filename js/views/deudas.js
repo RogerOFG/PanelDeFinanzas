@@ -84,7 +84,7 @@ const DeudasView = {
   // ¿El último vencimiento que ya pasó fue cubierto por un pago?
   // Busca un pago entre [vencimiento - 1 mes, vencimiento].
   ultimoVencimientoPagado(deuda) {
-    return this.vencimientosCubiertos(deuda.historialPagos, deuda.diaPago).has(this.ultimoVencimiento(deuda.diaPago));
+    return this.vencimientosCubiertos(deuda.historialPagos, deuda.diaPago, this.cuotaDeuda(deuda)).has(this.ultimoVencimiento(deuda.diaPago));
   },
 
   estaAtrasado(d) {
@@ -424,28 +424,37 @@ const DeudasView = {
   // Asigna cada pago (en orden) al vencimiento más reciente <= su fecha si aún no está
   // cubierto (pago a tiempo o tarde); si ya lo está, es un adelanto del siguiente
   // vencimiento sin cubrir. Avanza por (año, mes) lógicos para no saltar meses cortos.
-  vencimientosCubiertos(pagos, diaPago) {
+  // Con `cuota` > 0, un pago de varias cuotas (ej. octubre y noviembre juntos) cubre
+  // tantos vencimientos consecutivos como alcance su monto.
+  vencimientosCubiertos(pagos, diaPago, cuota) {
     const cubiertos = new Set();
-    (pagos || []).map(p => p.fecha).filter(Boolean).sort().forEach(fecha => {
-      const f = new Date(fecha + 'T00:00:00');
+    const venc = (i) => dateToISOLocal(fechaDiaMes(Math.floor(i / 12), i % 12, diaPago));
+    (pagos || []).filter(p => p.fecha).sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(p => {
+      const f = new Date(p.fecha + 'T00:00:00');
       let idx = f.getFullYear() * 12 + f.getMonth();
-      const venc = (i) => dateToISOLocal(fechaDiaMes(Math.floor(i / 12), i % 12, diaPago));
-      if (venc(idx) > fecha) idx--;
-      while (cubiertos.has(venc(idx))) idx++;
-      cubiertos.add(venc(idx));
+      if (venc(idx) > p.fecha) idx--;
+      const veces = cuota > 0 ? Math.max(1, Math.round(p.monto / cuota)) : 1;
+      for (let n = 0; n < veces; n++) {
+        while (cubiertos.has(venc(idx))) idx++;
+        cubiertos.add(venc(idx));
+      }
     });
     return cubiertos;
   },
 
+  cuotaDeuda(deuda) {
+    return deuda.tipoPago === 'variable' ? 0 : Number(deuda.monto) || 0;
+  },
+
   // Pagado si está cubierto el vencimiento que acaba de pasar (vale hasta el próximo)
   // o si ya se adelantó el pago del próximo vencimiento.
-  cicloCubierto(pagos, diaPago) {
-    const cubiertos = this.vencimientosCubiertos(pagos, diaPago);
+  cicloCubierto(pagos, diaPago, cuota) {
+    const cubiertos = this.vencimientosCubiertos(pagos, diaPago, cuota);
     return cubiertos.has(this.ultimoVencimiento(diaPago)) || cubiertos.has(this.proximoPago(diaPago));
   },
 
   pagadoEsteCiclo(deuda) {
-    return this.cicloCubierto(deuda.historialPagos, deuda.diaPago);
+    return this.cicloCubierto(deuda.historialPagos, deuda.diaPago, this.cuotaDeuda(deuda));
   },
 
   marcarPago(id) {
@@ -513,6 +522,13 @@ const DeudasView = {
               if (!soloRegistro) {
                 TransaccionesView.render();
                 if (typeof DashboardView !== 'undefined') DashboardView.render();
+              }
+              const fresca = Storage.find('deudas', deuda.id);
+              const pendientes = fresca ? DeudasView.miembrosDe(fresca.id)
+                .filter(m => m.activo && !DeudasView.pagadoEsteCicloMiembro(m, fresca)) : [];
+              if (pendientes.length && !document.querySelector('#modal-root form')) {
+                UI.toast('¿También pagaron los miembros? Revisa y confirma los movimientos.');
+                DeudasView.openPagoMasivo(fresca.id, { fecha });
               }
             });
           }).catch(err => {
@@ -587,7 +603,7 @@ const DeudasView = {
 
   // Pagado solo si cubrió el ciclo y no arrastra saldo pendiente de meses anteriores.
   pagadoEsteCicloMiembro(miembro, deuda) {
-    if (!this.cicloCubierto(miembro.pagos, deuda.diaPago)) return false;
+    if (!this.cicloCubierto(miembro.pagos, deuda.diaPago, Number(miembro.montoMensual) || 0)) return false;
     const debe = this.ciclosTranscurridosMiembro(miembro, deuda) * miembro.montoMensual - this.totalPagadoMiembro(miembro);
     return debe <= 0;
   },
@@ -640,6 +656,7 @@ const DeudasView = {
         <div class="card" style="margin-bottom:10px;">
           <div class="section-header" style="margin-bottom:6px;">
             <div>
+              ${m.activo && !String(m.id).startsWith('tmp_') ? `<input type="checkbox" data-sel-miembro="${m.id}" ${pagadoEsteCiclo ? '' : 'checked'} style="margin-right:6px;">` : ''}
               <strong>${escapeHtml(m.nombre)}</strong>
               ${!m.activo ? '<span class="pill tipo" style="margin-left:6px;">Inactivo</span>' : ''}
             </div>
@@ -660,6 +677,7 @@ const DeudasView = {
       <div id="miembros-lista">
         ${miembros.length ? miembros.map(filaMiembro).join('') : '<div class="empty-state">Aún no has agregado miembros.</div>'}
       </div>
+      ${miembros.some(m => m.activo) ? `<button class="btn" id="pagar-seleccionados" style="width:100%;margin-top:6px;">Marcar seleccionados como pagados</button>` : ''}
       <button class="btn secondary" id="add-miembro" style="width:100%;margin-top:6px;">+ Agregar miembro</button>
       <div class="modal-actions">
         <button type="button" class="btn" id="cerrar-miembros">Cerrar</button>
@@ -668,6 +686,12 @@ const DeudasView = {
       onMount: (root) => {
         root.querySelector('#cerrar-miembros').onclick = () => UI.closeModal();
         root.querySelector('#add-miembro').onclick = () => this.openMiembroForm(deudaId);
+        const pagarSel = root.querySelector('#pagar-seleccionados');
+        if (pagarSel) pagarSel.onclick = () => {
+          const ids = [...root.querySelectorAll('[data-sel-miembro]:checked')].map(c => c.dataset.selMiembro);
+          if (!ids.length) { UI.toast('Selecciona al menos un miembro', 'warn'); return; }
+          this.openPagoMasivo(deudaId, { preseleccion: ids, alCerrar: () => { UI.closeModal(); this.openMiembros(deudaId); } });
+        };
         root.querySelectorAll('[data-editar-miembro]').forEach(b => b.onclick = () => this.openMiembroForm(deudaId, b.dataset.editarMiembro));
         root.querySelectorAll('[data-pagar-miembro]').forEach(b => b.onclick = () => this.openPagoMiembro(b.dataset.pagarMiembro));
         root.querySelectorAll('[data-borrar-miembro]').forEach(b => b.onclick = () => {
@@ -678,6 +702,116 @@ const DeudasView = {
             DeudasView.openMiembros(deudaId);
           });
         });
+      }
+    });
+  },
+
+  // Lo que debe hoy un miembro (deuda acumulada) o, si está al día, una cuota.
+  montoSugeridoMiembro(m, deuda) {
+    const debe = this.ciclosTranscurridosMiembro(m, deuda) * m.montoMensual - this.totalPagadoMiembro(m);
+    return debe > 0 ? debe : Number(m.montoMensual) || 0;
+  },
+
+  // Registra el pago de varios miembros de una vez. `preseleccion`: ids marcados al abrir
+  // (por defecto, todos los pendientes). Muestra los movimientos que se crearán.
+  openPagoMasivo(deudaId, { preseleccion, fecha, alCerrar } = {}) {
+    const deuda = Storage.find('deudas', deudaId);
+    const candidatos = this.miembrosDe(deudaId).filter(m => m.activo && !String(m.id).startsWith('tmp_'));
+    if (!candidatos.length) { UI.toast('No hay miembros activos para registrar', 'warn'); return; }
+    const pendientes = new Set(candidatos.filter(m => !this.pagadoEsteCicloMiembro(m, deuda)).map(m => String(m.id)));
+    const marcados = new Set((preseleccion || [...pendientes]).map(String));
+    const cuentas = Storage.get('cuentas');
+    const cuentaOpts = cuentas.map(c => ({ value: c.id, label: accountLabel(c) }));
+    const cerrar = alCerrar || (() => UI.closeModal());
+
+    UI.openModal(`Pagos de miembros — ${escapeHtml(deuda.nombre)}`, `
+      <form id="pago-masivo-form">
+        <p class="text-dim mt-0">Marca quiénes pagaron. Puedes ajustar el monto de cada uno.</p>
+        ${candidatos.map(m => `
+          <div class="form-row" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" name="sel" value="${m.id}" id="pmas-${m.id}" ${marcados.has(String(m.id)) ? 'checked' : ''}>
+            <label for="pmas-${m.id}" style="margin:0;flex:1;">${escapeHtml(m.nombre)}${pendientes.has(String(m.id)) ? '' : ' <span class="pill pos">al día</span>'}</label>
+            <div style="width:140px;">${UI.moneyInputHTML('monto_' + m.id, Math.round(this.montoSugeridoMiembro(m, deuda)), { chips: [] })}</div>
+          </div>`).join('')}
+        <div class="form-row checkbox-row">
+          <input type="checkbox" name="soloRegistro" id="pmas-solo" ${cuentaOpts.length ? '' : 'checked disabled'}>
+          <label for="pmas-solo" style="margin:0;">Ya está reflejado en mi saldo (no crear ingresos)</label>
+        </div>
+        <div class="form-row" id="pmas-cuenta-row" ${cuentaOpts.length ? '' : 'style="display:none;"'}>
+          <label>¿A qué cuenta llegaron los pagos?</label>
+          ${cuentaOpts.length ? UI.selectHTML('cuentaId', cuentaOpts, cuentaOpts[0].value, { id: 'pmas-cuenta' }) : ''}
+        </div>
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="${fecha || todayISO()}">
+        </div>
+        <div class="card" style="margin:8px 0;"><p class="card-title" style="margin-top:0;">Movimientos a registrar</p><div id="pmas-resumen"></div></div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancel-btn">No, cerrar</button>
+          <button type="submit" class="btn" id="pmas-ok">Registrar pagos</button>
+        </div>
+      </form>
+    `, {
+      onMount: (root) => {
+        UI.initSelects(root);
+        UI.initMoneyInputs(root);
+        const form = root.querySelector('#pago-masivo-form');
+        const solo = root.querySelector('#pmas-solo');
+        const cuentaRow = root.querySelector('#pmas-cuenta-row');
+
+        const leer = () => {
+          const fd = new FormData(form);
+          const ids = new Set(fd.getAll('sel').map(String));
+          const items = candidatos.filter(m => ids.has(String(m.id)))
+            .map(m => ({ m, monto: parseFloat(fd.get('monto_' + m.id)) || 0 }));
+          const soloRegistro = solo.checked;
+          const cuenta = soloRegistro ? null : Storage.find('cuentas', fd.get('cuentaId'));
+          return { items, soloRegistro, cuenta, fecha: fd.get('fecha') || todayISO() };
+        };
+
+        const resumen = () => {
+          const { items, soloRegistro, cuenta } = leer();
+          const total = items.reduce((s, i) => s + i.monto, 0);
+          const destino = soloRegistro ? 'solo registro (sin tocar saldo)' : `ingreso a ${escapeHtml(cuenta?.nombre || '')}`;
+          root.querySelector('#pmas-resumen').innerHTML = items.length
+            ? items.map(i => `<div class="stat-sub">${escapeHtml(i.m.nombre)}: ${formatMoney(i.monto, deuda.moneda)} — ${destino}${i.monto <= 0 ? ' <span class="pill neg">monto inválido</span>' : ''}</div>`).join('')
+              + `<div class="stat-sub"><strong>Total: ${formatMoney(total, deuda.moneda)}</strong></div>`
+            : '<div class="stat-sub">Ningún miembro seleccionado.</div>';
+          root.querySelector('#pmas-ok').disabled = !items.length || items.some(i => i.monto <= 0);
+        };
+
+        solo.addEventListener('change', () => { cuentaRow.style.display = solo.checked ? 'none' : ''; resumen(); });
+        form.addEventListener('input', resumen);
+        form.addEventListener('change', resumen);
+        resumen();
+
+        root.querySelector('#cancel-btn').onclick = cerrar;
+        form.onsubmit = async (e) => {
+          e.preventDefault();
+          const { items, soloRegistro, cuenta, fecha: f } = leer();
+          if (!items.length || items.some(i => i.monto <= 0)) return;
+          if (!soloRegistro && !cuenta) { UI.toast('Elige una cuenta', 'warn'); return; }
+          if (!UI.guardSubmit(e)) return;
+          UI.closeModal();
+          UI.toast(`Registrando ${items.length} pago(s)...`);
+
+          // En serie: así un fallo no deja los demás a medias y se sabe exactamente cuál falló.
+          const fallidos = [];
+          for (const { m, monto } of items) {
+            try {
+              await Storage.pagoMiembro(m.id, { monto, cuentaId: cuenta?.id ?? null, fecha: f, soloRegistro });
+            } catch (err) {
+              fallidos.push(`${m.nombre} (${err.message})`);
+            }
+          }
+          await Storage.initFromServer().catch(() => {});
+          DeudasView.render();
+          CuentasView.render();
+          TransaccionesView.render();
+          if (typeof DashboardView !== 'undefined') DashboardView.render();
+          if (fallidos.length) UI.toast('No se registraron: ' + fallidos.join(', '), 'danger');
+          else UI.toast(`${items.length} pago(s) de miembros registrados`);
+        };
       }
     });
   },

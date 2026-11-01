@@ -433,7 +433,8 @@ const DeudasView = {
       const f = new Date(p.fecha + 'T00:00:00');
       let idx = f.getFullYear() * 12 + f.getMonth();
       if (venc(idx) > p.fecha) idx--;
-      const veces = cuota > 0 ? Math.max(1, Math.round(p.monto / cuota)) : 1;
+      // Solo meses completos (15k con cuota de 10k = 1 mes); 1% de tolerancia por redondeos.
+      const veces = cuota > 0 ? Math.max(1, Math.floor(p.monto / cuota + 0.01)) : 1;
       for (let n = 0; n < veces; n++) {
         while (cubiertos.has(venc(idx))) idx++;
         cubiertos.add(venc(idx));

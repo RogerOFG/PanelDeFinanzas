@@ -84,10 +84,7 @@ const DeudasView = {
   // ¿El último vencimiento que ya pasó fue cubierto por un pago?
   // Busca un pago entre [vencimiento - 1 mes, vencimiento].
   ultimoVencimientoPagado(deuda) {
-    const uv = this.ultimoVencimiento(deuda.diaPago);
-    const uvDate = new Date(uv + 'T00:00:00');
-    const inicioUv = dateToISOLocal(new Date(uvDate.getFullYear(), uvDate.getMonth() - 1, deuda.diaPago));
-    return (deuda.historialPagos || []).some(p => p.fecha > inicioUv && p.fecha <= uv);
+    return this.vencimientosCubiertos(deuda.historialPagos, deuda.diaPago).has(this.ultimoVencimiento(deuda.diaPago));
   },
 
   estaAtrasado(d) {
@@ -421,10 +418,23 @@ const DeudasView = {
     return dateToISOLocal(new Date(proximo.getFullYear(), proximo.getMonth() - 1, diaPago));
   },
 
+  // Asigna cada pago (en orden) al vencimiento más cercano aún sin cubrir; si ese ya
+  // está cubierto, al siguiente. Así un pago un poco tarde o un poco temprano cuenta
+  // para el mes correcto en vez de "saltar" al ciclo siguiente.
+  vencimientosCubiertos(pagos, diaPago) {
+    const cubiertos = new Set();
+    (pagos || []).map(p => p.fecha).filter(Boolean).sort().forEach(fecha => {
+      const f = new Date(fecha + 'T00:00:00');
+      const candidatos = [-1, 0, 1].map(k => new Date(f.getFullYear(), f.getMonth() + k, diaPago));
+      let v = candidatos.reduce((a, b) => Math.abs(b - f) < Math.abs(a - f) ? b : a);
+      while (cubiertos.has(dateToISOLocal(v))) v = new Date(v.getFullYear(), v.getMonth() + 1, diaPago);
+      cubiertos.add(dateToISOLocal(v));
+    });
+    return cubiertos;
+  },
+
   pagadoEsteCiclo(deuda) {
-    const inicio = this.cicloInicio(deuda.diaPago);
-    const fin = this.proximoPago(deuda.diaPago);
-    return (deuda.historialPagos || []).some(p => p.fecha > inicio && p.fecha <= fin);
+    return this.vencimientosCubiertos(deuda.historialPagos, deuda.diaPago).has(this.proximoPago(deuda.diaPago));
   },
 
   marcarPago(id) {
@@ -560,9 +570,7 @@ const DeudasView = {
   },
 
   pagadoEsteCicloMiembro(miembro, deuda) {
-    const inicio = this.cicloInicio(deuda.diaPago);
-    const fin = this.proximoPago(deuda.diaPago);
-    return (miembro.pagos || []).some(p => p.fecha > inicio && p.fecha <= fin);
+    return this.vencimientosCubiertos(miembro.pagos, deuda.diaPago).has(this.proximoPago(deuda.diaPago));
   },
 
   totalPagadoMiembro(miembro) {

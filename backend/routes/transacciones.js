@@ -91,6 +91,28 @@ router.put('/:id', async (req, res) => {
       [cuentaId, cuentaDestinoId || null, tipo, monto, categoria || null, descripcion || null, fecha || null, req.params.id, req.usuario.id]
     );
 
+    // Mantener sincronizados los pagos de deudas/miembros/préstamos creados desde esta transacción.
+    const nuevaFecha = rows[0].fecha;
+    const diff = parseFloat(monto) - parseFloat(existing.rows[0].monto);
+    const dp = await client.query(
+      `UPDATE deuda_pagos SET fecha=$1, monto=$2 WHERE transaccion_id=$3 RETURNING deuda_id;`,
+      [nuevaFecha, monto, req.params.id]
+    );
+    for (const r of dp.rows) {
+      await client.query(`UPDATE deudas SET monto_pagado = monto_pagado + $1 WHERE id=$2 AND usuario_id=$3;`, [diff, r.deuda_id, req.usuario.id]);
+    }
+    await client.query(`UPDATE pagos_miembro SET fecha=$1, monto=$2 WHERE transaccion_id=$3;`, [nuevaFecha, monto, req.params.id]);
+    const pp = await client.query(
+      `UPDATE prestamo_pagos SET fecha=$1, monto=$2 WHERE transaccion_id=$3 RETURNING prestamo_id;`,
+      [nuevaFecha, monto, req.params.id]
+    );
+    for (const r of pp.rows) {
+      await client.query(
+        `UPDATE prestamos SET monto_pagado = monto_pagado + $1, completado = (monto_pagado + $1) >= monto WHERE id=$2 AND usuario_id=$3;`,
+        [diff, r.prestamo_id, req.usuario.id]
+      );
+    }
+
     await client.query('COMMIT');
     res.json(rows[0]);
   } catch (e) {

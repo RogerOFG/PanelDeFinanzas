@@ -433,8 +433,15 @@ const DeudasView = {
     return cubiertos;
   },
 
+  // Pagado si está cubierto el vencimiento que acaba de pasar (vale hasta el próximo)
+  // o si ya se adelantó el pago del próximo vencimiento.
+  cicloCubierto(pagos, diaPago) {
+    const cubiertos = this.vencimientosCubiertos(pagos, diaPago);
+    return cubiertos.has(this.ultimoVencimiento(diaPago)) || cubiertos.has(this.proximoPago(diaPago));
+  },
+
   pagadoEsteCiclo(deuda) {
-    return this.vencimientosCubiertos(deuda.historialPagos, deuda.diaPago).has(this.proximoPago(deuda.diaPago));
+    return this.cicloCubierto(deuda.historialPagos, deuda.diaPago);
   },
 
   marcarPago(id) {
@@ -570,7 +577,7 @@ const DeudasView = {
   },
 
   pagadoEsteCicloMiembro(miembro, deuda) {
-    return this.vencimientosCubiertos(miembro.pagos, deuda.diaPago).has(this.proximoPago(deuda.diaPago));
+    return this.cicloCubierto(miembro.pagos, deuda.diaPago);
   },
 
   totalPagadoMiembro(miembro) {

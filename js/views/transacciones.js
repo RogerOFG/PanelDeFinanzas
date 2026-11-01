@@ -321,7 +321,13 @@ const TransaccionesView = {
             fecha: fd.get('fecha') || todayISO()
           };
 
-          if (tx) Storage.update('transacciones', tx.id, data, revertirSaldos);
+          if (tx) Storage.update('transacciones', tx.id, data, revertirSaldos, () => {
+            // La transacción puede estar enlazada a un pago de deuda/miembro/préstamo.
+            Storage.initFromServer().then(() => {
+              if (typeof DeudasView !== 'undefined') DeudasView.render();
+              if (typeof PrestamosView !== 'undefined') PrestamosView.render();
+            });
+          });
           else Storage.insert('transacciones', data, revertirSaldos);
 
           UI.closeModal();
